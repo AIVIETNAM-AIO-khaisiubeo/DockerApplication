@@ -1,6 +1,4 @@
-# Kế hoạch 28/10 -> 05/11/2026 - MedTriage AI
-## Phân công theo người
-
+# Kế hoạch Phân công theo người 28/10 -> 05/11/2026 - MedTriage AI
 ### P1 - Module 01 (Giao diện) + Audit 1 (Tái lập & Dev) + ghép báo cáo
 - **28/10 (T4):** chạy scaffold, ghi OS vào `audits/os_matrix.md`; cùng nhóm chốt cách dùng Git.
 - **29-30/10:** hoàn thiện UI: upload ảnh + nhập triệu chứng, biểu đồ xác suất, SOAP, nhãn ưu tiên có màu, hiển thị độ trễ, trang Lịch sử; báo lỗi thân thiện khi một service sập. *(M1)*
