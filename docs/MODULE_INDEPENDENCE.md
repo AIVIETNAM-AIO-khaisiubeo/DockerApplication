@@ -1,7 +1,5 @@
 # Làm riêng từng module, ghép lại ở cuối
 
-## Ý tưởng chính
-
 Trong nhóm có 4 người, không nên bắt mọi người chạy cả ứng dụng mỗi lần muốn sửa code. Thay vào đó:
 
 1. Mỗi người chạy và kiểm tra phần mình bằng một file Compose riêng.
