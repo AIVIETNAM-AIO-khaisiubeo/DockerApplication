@@ -33,12 +33,4 @@ Tìm `TODO(P1..P4)` trong code để thấy việc của mình: `grep -rn "TODO(
 - Đổi API => cập nhật `docs/CONTRACT.md` và báo nhóm.
 - Chế độ thật: đặt `MODEL_MODE=real` / `LLM_MODE=real` trong `.env` khi module của bạn sẵn sàng.
 
-## Chạy audit
-```bash
-bash audits/run_all.sh            # hoặc từng file audits/auditN_*.sh ; kết quả ở audits/results/<thời gian>/
-```
-Windows: dùng Git Bash hoặc WSL. Cấu trúc compose/script chưa được chạy thử trên Docker thật trước khi giao nhóm;
-nếu lỗi ở bước `docker compose up --build` hãy gửi log cho P4 xử lý ngay trong ngày 28/10.
-=======
-# DockerApplication
->>>>>>> 0bef199964252e67d57773dda1a6dc022f3b7dcb
+
