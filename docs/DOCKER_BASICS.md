@@ -18,7 +18,7 @@ Docker **không tự tạo ra model ML** và cũng không làm model chính xác
 
 | Từ | Hiểu đơn giản | Ví dụ trong repo |
 |---|---|---|
-| **Image** (ảnh Docker) | Bản đóng gói để tạo ra môi trường chạy | Build từ \`services/02-vision/Dockerfile\` |
+| **Image** (gói Docker) | Bản đóng gói để tạo ra môi trường chạy | Build từ \`services/02-vision/Dockerfile\` |
 | **Container** | Một lần chạy của image, giống một tiến trình được cách ly | Container tên \`vision\` |
 | **Dockerfile** | Công thức để tạo image | \`services/03-llm/Dockerfile\` |
 | **Docker Compose** | File mô tả những container nào cần chạy và kết nối với nhau ra sao | \`docker-compose.yml\` |
@@ -27,7 +27,34 @@ Docker **không tự tạo ra model ML** và cũng không làm model chính xác
 
 Ví dụ dễ nhớ: Dockerfile là công thức nấu ăn, image là món đã chuẩn bị sẵn theo công thức, container là lần bạn bày món đó ra sử dụng. Nếu container bị xoá rồi tạo lại, dữ liệu trong volume có thể vẫn còn.
 
-## 3. Các lệnh Docker thường dùng
+## 3. Đọc Dockerfile trong repo
+
+Mỗi module có một file tên `Dockerfile`. File này nói cho Docker biết cách chuẩn bị môi trường để chạy code.
+
+Ví dụ đơn giản hoá từ Dockerfile của UI:
+
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
+```
+
+Đọc từng dòng:
+- `FROM`: bắt đầu từ một môi trường có sẵn. Ở đây là Python 3.11.
+- `WORKDIR`: chọn thư mục làm việc bên trong container.
+- `COPY requirements.txt .`: đưa danh sách thư viện cần cài vào container.
+- `RUN pip install ...`: cài các thư viện khi tạo image.
+- `COPY . .`: copy code của module vào image.
+- `CMD`: lệnh được chạy khi container khởi động.
+
+Vì sao thường copy `requirements.txt` và cài thư viện trước khi copy toàn bộ code? Nếu chỉ code thay đổi mà danh sách thư viện không đổi, Docker có thể dùng lại lớp cài thư viện đã tạo ở lần build trước. Đây gọi là **build cache** (tái sử dụng các bước đã hoàn thành), giúp build nhanh hơn.
+
+**Lưu ý:** `EXPOSE 8000` trong Dockerfile chỉ ghi chú cổng mà ứng dụng sử dụng bên trong container. Để mở cổng ra laptop, cần cấu hình `ports` trong file Compose.
+
+## 4. Các lệnh Docker thường dùng
 
 Chạy các lệnh từ thư mục gốc repository, trừ khi hướng dẫn ghi khác.
 
@@ -45,7 +72,7 @@ Chạy các lệnh từ thư mục gốc repository, trừ khi hướng dẫn gh
 - \`down\` thường xoá container và network do Compose tạo, nhưng giữ Named Volume.
 - \`down -v\` còn xoá cả Named Volume thuộc stack đó. Có thể mất database hoặc model cache. Đừng dùng lệnh này chỉ để “dọn dẹp” nếu chưa chắc dữ liệu có thể xoá.
 
-## 4. Port: vì sao P2 dùng 8001 thay vì 8000?
+## 5. Port: vì sao P2 dùng 8001 thay vì 8000?
 
 Trong Compose độc lập của P2, cấu hình tương tự:
 
@@ -61,7 +88,7 @@ ports:
 
 Vì vậy, mở \`http://localhost:8001/docs\` để thử API P2 từ trình duyệt. Bên trong hệ thống tích hợp, UI gọi tên service \`vision\` và cổng container \`8000\`; các container giao tiếp qua mạng Docker, không dùng cổng localhost của máy host.
 
-## 5. Volume và Bind Mount: code khác dữ liệu
+## 6. Volume và Bind Mount: code khác dữ liệu
 
 ### Bind mount — chia sẻ thư mục code
 Ví dụ:
@@ -85,7 +112,7 @@ Named Volume là vùng dữ liệu Docker tự quản lý. Ta dùng nó để l�
 
 **Mẹo:** code thường nằm trong thư mục repo và được bind mount; dữ liệu cần giữ lâu hơn vòng đời container thường nằm trong Named Volume.
 
-## 6. Tại sao mỗi module có file Compose riêng?
+## 7. Tại sao mỗi module có file Compose riêng?
 
 Compose tích hợp \`docker-compose.yml\` chạy cả bốn service. Điều đó tốt khi kiểm thử toàn hệ thống, nhưng chậm và dễ gây rối khi bạn chỉ đang sửa một phần.
 
@@ -97,7 +124,7 @@ Các file riêng giúp:
 
 Các file này là công cụ **phát triển độc lập**, không thay thế Compose tích hợp khi cần kiểm tra cả luồng. Mọi kết quả mock chỉ để test phần mềm, không phải kết quả y khoa.
 
-## 7. Thực hành theo module
+## 8. Thực hành theo module
 
 ### P1 — UI
 
@@ -145,7 +172,7 @@ docker compose -f docker-compose.p4.yml exec db psql -U medtriage -d medtriage -
 
 Mong đợi thấy bảng \`cases\`. P4 dùng host port \`5433\`, và volume riêng cho database phát triển. Không cần mở trang web trong trình duyệt; PostgreSQL là dịch vụ database, không phải giao diện web.
 
-## 8. Phát triển độc lập và tích hợp khác nhau thế nào?
+## 9. Phát triển độc lập và tích hợp khác nhau thế nào?
 
 **Khi đang code:** chỉ chạy Compose riêng của bạn. Bạn không cần chờ model của thành viên khác, cũng không cần chạy toàn hệ thống.
 
@@ -161,7 +188,7 @@ Mở \`http://localhost:8501\` và kiểm tra luồng UI → Vision → LLM → 
 
 Khi toàn bộ luồng và các audit được yêu cầu đã kiểm tra đạt, leader tạo Pull Request từ \`integration\` sang \`main\`.
 
-## 9. Nếu gặp lỗi, kiểm tra theo thứ tự
+## 10. Nếu gặp lỗi, kiểm tra theo thứ tự
 
 1. **Docker có đang chạy?** Chạy \`docker version\`. Nếu phần Server báo lỗi, mở Docker Desktop hoặc khởi động Docker Engine.
 2. **Container đã chạy chưa?** Dùng file Compose đúng module, thêm \`ps\`. Nếu chưa chạy, đọc log.
@@ -172,7 +199,7 @@ Khi toàn bộ luồng và các audit được yêu cầu đã kiểm tra đạt
 
 Đừng vội xoá volume hoặc chuyển sang mode real để né lỗi. Hãy copy thông báo lỗi và gửi nhóm cùng lệnh đã chạy, kết quả mong đợi, và bước bạn đã thử.
 
-## 10. Từ điển từ thường gặp
+## 11. Từ điển từ thường gặp
 
 - **API:** cách một chương trình yêu cầu chương trình khác làm việc, theo địa chỉ và định dạng đã thống nhất.
 - **Endpoint:** một đường dẫn của API, ví dụ \`/predict\` hoặc \`/health\`.
