@@ -20,6 +20,7 @@ services:
     volumes:
       - ./data:/data:ro
     networks: [frontend, backend] # UI cần gọi API và database nên kết nối cả hai mạng.
+    # UI chỉ bắt đầu khi các dịch vụ bên dưới báo đã sẵn sàng qua healthcheck.
     depends_on:
       db:     {condition: service_healthy}
       vision: {condition: service_healthy}
@@ -30,7 +31,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
-    restart: unless-stopped
+    restart: unless-stopped # nếu container dừng bất ngờ, Docker thử khởi động lại.
 
   # P2: nhận file ảnh và trả về kết quả Vision.
   vision:
@@ -59,9 +60,10 @@ services:
     volumes:
       - llm_models:/models                 # vùng giữ weights/cache LLM qua các lần tạo container
     networks: [backend]
+    # Giới hạn RAM/CPU cho LLM để kiểm tra xem service hoạt động ra sao khi tài nguyên bị giới hạn.
     deploy:
       resources:
-        limits:                            # TODO(P3): chỉnh theo model thật, dùng cho Audit 3
+        limits:
           memory: 512M
           cpus: "1.0"
     healthcheck:
