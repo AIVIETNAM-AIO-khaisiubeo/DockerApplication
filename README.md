@@ -1,5 +1,5 @@
-<<<<<<< HEAD
-# MedTriage AI - Prototype khung (scaffold)
+
+# MedTriage AI 
 
 Pipeline 4 container: **UI (Streamlit) -> Vision API -> LLM API -> PostgreSQL**.
 Mọi thứ đã chạy được ở chế độ **mock**; mỗi người chỉ cần thay phần code trong thư mục module của mình.
