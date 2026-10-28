@@ -1,127 +1,86 @@
-# Hướng dẫn bắt đầu project DockerApplication
+# Bắt đầu làm việc với MedTriage AI
 
-**Dành cho:** thành viên đã học Machine Learning/Deep Learning nhưng chưa có nhiều kinh nghiệm phát triển phần mềm, Docker hoặc MLOps.
+Đây là **điểm bắt đầu duy nhất** cho thành viên mới. Project được chia thành bốn module để mỗi người có thể phát triển và kiểm tra riêng trước khi ghép hệ thống.
 
-Repository: https://github.com/AIVIETNAM-AIO-khaisiubeo/DockerApplication
+> **Lưu ý an toàn:** project hiện có các chế độ mock dùng để kiểm tra phần mềm. Kết quả mock là dữ liệu giả, không phải dự đoán y khoa và không được dùng cho quyết định chẩn đoán hoặc điều trị.
 
-## 1. Đọc hướng dẫn theo thứ tự
+## 1. Chọn đúng tài liệu
 
-1. [README — tổng quan project](../README.md)
-2. [Docker căn bản — học bằng chính project này](DOCKER_BASICS.md)
-3. [Hướng dẫn thành viên: chạy, test, xử lý lỗi và Git](TEAM_GUIDE.md)
-4. [Làm module độc lập rồi ghép sau](MODULE_INDEPENDENCE.md)
-5. [Hợp đồng API — cách các module trao đổi dữ liệu](CONTRACT.md)
-6. [Kế hoạch và phân công](../PLAN.md)
+Mỗi file có một nhiệm vụ riêng; không cần đọc tất cả ngay từ đầu.
 
-Không cần hiểu hết code trước khi bắt đầu. Hãy chạy được module được giao trước, sau đó đọc và sửa phần code liên quan.
+| Tài liệu | Dùng khi nào? |
+|---|---|
+| [README](../README.md) | Muốn xem nhanh project gồm những phần nào. |
+| **Tài liệu này** | Cài công cụ, lấy code và chạy module được giao lần đầu. |
+| [DOCKER_BASICS.md](DOCKER_BASICS.md) | Chưa rõ image, container, port, volume hoặc các lệnh Docker. |
+| [TEAM_GUIDE.md](TEAM_GUIDE.md) | Đã chạy module và cần kiểm tra kết quả, đọc log hoặc xử lý lỗi. |
+| [MODULE_INDEPENDENCE.md](MODULE_INDEPENDENCE.md) | Cần hiểu quy trình branch, Pull Request và cách leader ghép các module. |
+| [CONTRACT.md](CONTRACT.md) | Cần biết chính xác API nhận và trả dữ liệu gì, hoặc muốn đổi cấu trúc dữ liệu. |
+| [PLAN.md](../PLAN.md) | Cần xem nhiệm vụ và kế hoạch chung. |
+
+Hướng dẫn được quản lý tập trung trong thư mục docs/; các thư mục trong services/ hiện không có file hướng dẫn Markdown riêng.
 
 ## 2. Chuẩn bị máy
 
-Cài Git và Docker Desktop (Windows/macOS), hoặc Docker Engine + Docker Compose v2 (Linux). Mở terminal và kiểm tra:
+Cài Git và Docker:
+- Windows/macOS: Docker Desktop.
+- Linux: Docker Engine và Docker Compose v2.
 
-```bash
+Mở terminal và kiểm tra:
+
+~~~bash
 git --version
 docker --version
 docker compose version
-```
+~~~
 
-Nếu Docker báo không kết nối được tới engine/server, hãy mở Docker Desktop hoặc khởi động Docker Engine rồi thử lại.
+Nếu docker version báo không kết nối được tới Docker Engine, hãy mở Docker Desktop hoặc khởi động Docker Engine trước khi tiếp tục.
 
-## 3. Lấy repository và tạo branch cá nhân
+## 3. Tải repository và tạo branch
 
-Chạy các lệnh sau trong terminal:
+Chạy trong terminal:
 
-```bash
+~~~bash
 git clone https://github.com/AIVIETNAM-AIO-khaisiubeo/DockerApplication.git
 cd DockerApplication
 git fetch origin
 git switch -c <ten-branch> origin/integration
-```
+~~~
 
-Thay `<ten-branch>` bằng branch của mình:
+Thay <ten-branch> theo module được giao:
 
-- P1: `p1-ui`
-- P2: `p2-vision`
-- P3: `p3-llm`
-- P4: `p4-db`
-
-Nếu branch đó đã tồn tại trên máy, dùng `git switch <ten-branch>` thay vì tạo lại. Làm việc trên branch cá nhân, không commit trực tiếp vào `main` hoặc `integration`.
-
-## 4. Chỉ chạy module được giao
-
-Mở terminal **tại thư mục gốc `DockerApplication`**. Chỉ chạy một lệnh tương ứng với module của bạn; chưa cần khởi động toàn bộ project.
-
-| Thành viên | Lệnh chạy | Kết quả để kiểm tra |
+| Module | Branch gợi ý | Thư mục code chính |
 |---|---|---|
-| **P1 — UI** | `docker compose -f docker-compose.p1.yml up --build` | Mở [http://localhost:8501](http://localhost:8501). UI dùng backend giả lập để thử giao diện, không gọi model/API thật và không ghi PostgreSQL. |
-| **P2 — Vision API** | `docker compose -f docker-compose.p2.yml up --build` | Mở [http://localhost:8001/docs](http://localhost:8001/docs). Thử `GET /health` và `POST /predict`. |
-| **P3 — LLM API** | `docker compose -f docker-compose.p3.yml up --build` | Mở [http://localhost:8002/docs](http://localhost:8002/docs). Thử `GET /health` và `POST /soap`. |
-| **P4 — PostgreSQL** | `docker compose -f docker-compose.p4.yml up --build -d` | Kiểm tra trạng thái bằng `docker compose -f docker-compose.p4.yml ps`; xem bảng theo hướng dẫn trong `DOCKER_BASICS.md`. |
+| P1 — UI | p1-ui | services/01-ui/ |
+| P2 — Vision API | p2-vision | services/02-vision/ |
+| P3 — LLM API | p3-llm | services/03-llm/ |
+| P4 — Database | p4-db | services/04-db/ |
 
-Lần chạy đầu tiên có thể mất thêm thời gian vì Docker cần tải môi trường nền và cài thư viện.
+Nếu branch của bạn đã tồn tại trên máy, dùng git switch <ten-branch> thay vì tạo lại. Làm việc trên branch cá nhân; không commit trực tiếp vào main hoặc integration.
 
-## 5. Code ở đâu?
+## 4. Chạy riêng module được giao
 
-| Thành viên | File nên mở đầu tiên | Mục tiêu |
+**Chạy các lệnh từ thư mục gốc DockerApplication và chỉ chọn một lệnh** theo phần việc của bạn. Chưa cần chạy toàn bộ project.
+
+| Module | Lệnh chạy | Mở hoặc kiểm tra |
 |---|---|---|
-| P1 | `services/01-ui/app.py` | Hoàn thiện giao diện, hiển thị kết quả, trạng thái và xử lý lỗi. |
-| P2 | `services/02-vision/app/main.py` | Xử lý ảnh, endpoint `/predict`, model và kết quả Vision. |
-| P3 | `services/03-llm/app/main.py` | Endpoint `/soap`, tạo SOAP, luật mức ưu tiên và xử lý lỗi LLM. |
-| P4 | `services/04-db/init.sql` và `docker-compose.yml` | Cấu trúc bảng, dữ liệu lưu bền vững và hạ tầng Docker. Trao đổi với nhóm trước khi đổi Compose dùng chung. |
+| **P1 — UI** | docker compose -f docker-compose.p1.yml up --build | Mở [http://localhost:8501](http://localhost:8501). Banner UI ISOLATION MODE xác nhận backend đang được mô phỏng ngay trong UI. |
+| **P2 — Vision API** | docker compose -f docker-compose.p2.yml up --build | Mở [http://localhost:8001/docs](http://localhost:8001/docs), thử GET /health và POST /predict. |
+| **P3 — LLM API** | docker compose -f docker-compose.p3.yml up --build | Mở [http://localhost:8002/docs](http://localhost:8002/docs), thử GET /health và POST /soap. |
+| **P4 — PostgreSQL** | docker compose -f docker-compose.p4.yml up --build -d | Kiểm tra container bằng docker compose -f docker-compose.p4.yml ps; cách liệt kê bảng nằm trong [TEAM_GUIDE.md](TEAM_GUIDE.md). |
 
-## 6. Sau mỗi lần sửa code
+Lần build đầu có thể mất thêm thời gian vì Docker cần tải môi trường và cài thư viện. Kết quả mong đợi, ví dụ request và cách kiểm tra từng module được mô tả trong [TEAM_GUIDE.md](TEAM_GUIDE.md).
 
-1. Lưu file và kiểm tra ứng dụng có cập nhật không.
-2. Nếu cần, xem container và log bằng lệnh dưới đây (đổi tên file Compose cho đúng module):
+## 5. Quy tắc quan trọng trước khi sửa code
 
-```bash
-docker compose -f docker-compose.p2.yml ps
-docker compose -f docker-compose.p2.yml logs
-```
+- Chỉ tập trung vào module được giao; không cần khởi động cả bốn module khi đang phát triển riêng.
+- Không tự ý đổi endpoint hoặc tên trường JSON vì các module khác có thể đang dùng chúng. Trao đổi với nhóm và cập nhật [CONTRACT.md](CONTRACT.md) trước khi thay đổi.
+- Không commit file .env, API key, mật khẩu thật, dữ liệu bệnh nhân có thể định danh hoặc model weights lớn.
+- Không dùng kết quả mock làm kết luận y khoa.
+- docker compose down -v có thể xoá Named Volume, bao gồm dữ liệu database hoặc model cache. Không dùng lệnh này nếu chưa chắc dữ liệu có thể xoá.
 
-3. Chạy lại bài test của module và ghi kết quả.
-4. Nếu thay `requirements.txt` hoặc Dockerfile, build lại bằng lệnh `up --build` tương ứng.
+## 6. Sau khi chạy được module
 
-Nếu gặp lỗi, gửi vào group: module đang làm, lệnh đã chạy, thông báo lỗi nguyên văn, log liên quan và kết quả mong đợi.
+Hãy làm theo [TEAM_GUIDE.md](TEAM_GUIDE.md) để kiểm tra phản hồi, xem log và xử lý lỗi. Trước khi gửi code, đọc [MODULE_INDEPENDENCE.md](MODULE_INDEPENDENCE.md) để làm đúng quy trình Pull Request vào integration.
 
-## 7. Git và Pull Request
-
-Khi đã sửa xong một phần nhỏ:
-
-```bash
-git status
-git diff
-git add <duong-dan-file-cua-minh>
-git commit -m "Describe your change"
-git push -u origin <ten-branch>
-```
-
-Sau đó tạo Pull Request trên GitHub từ branch cá nhân vào **`integration`**. Trong mô tả PR, ghi:
-- Đã thay đổi gì.
-- Đã chạy lệnh test nào và kết quả ra sao.
-- Phần nào còn TODO hoặc cần nhóm hỗ trợ.
-
-Không commit `.env`, API keys, mật khẩu thật, dữ liệu bệnh nhân có thể định danh hoặc model weights lớn. Không tự ý đổi tên endpoint/trường JSON; nếu cần thay đổi, báo nhóm và cập nhật `docs/CONTRACT.md`.
-
-## 8. Chỉ tích hợp ở cuối
-
-Trong lúc phát triển, **mỗi người chỉ chạy module của mình**. Khi các module đã có thể chạy riêng và có kết quả test, leader review PR và ghép trên `integration`.
-
-Khi cần kiểm tra toàn bộ hệ thống, leader chạy:
-
-```bash
-docker compose up --build -d
-docker compose ps
-docker compose exec -T ui python smoke_test.py
-```
-
-Mở [http://localhost:8501](http://localhost:8501) và thử luồng UI → Vision → LLM → PostgreSQL. Chỉ sau khi kiểm thử end-to-end và các audit cần thiết đạt yêu cầu, leader tạo PR từ `integration` vào `main`.
-
-## 9. Những điều cần nhớ
-
-- **Image** là gói môi trường; **container** là một lần chạy image.
-- **Dockerfile** là công thức tạo image; **Compose** mô tả các container cần chạy và cách chúng kết nối.
-- **Port** cho phép máy bạn truy cập ứng dụng; **volume** giúp giữ dữ liệu khi container bị tạo lại.
-- **Mock** là dữ liệu giả dùng để kiểm tra phần mềm. Mock không phải kết quả model thật và không được dùng cho quyết định y khoa.
-- `docker compose down` thường giữ Named Volume; `docker compose down -v` có thể xoá database/model cache. Không dùng `-v` nếu chưa chắc dữ liệu có thể xoá.
-- Không cần tự biết hết DevOps ngay. Trước tiên hãy chạy module, hiểu bài test, đọc log và ghi lại kết quả.
+Chỉ leader/người phụ trách tích hợp mới cần chạy toàn bộ stack và kiểm tra luồng end-to-end; quy trình này được mô tả trong [MODULE_INDEPENDENCE.md](MODULE_INDEPENDENCE.md).
