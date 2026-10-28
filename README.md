@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # MedTriage AI - Prototype khung (scaffold)
 
 Pipeline 4 container: **UI (Streamlit) -> Vision API -> LLM API -> PostgreSQL**.
@@ -38,3 +39,6 @@ bash audits/run_all.sh            # hoặc từng file audits/auditN_*.sh ; kế
 ```
 Windows: dùng Git Bash hoặc WSL. Cấu trúc compose/script chưa được chạy thử trên Docker thật trước khi giao nhóm;
 nếu lỗi ở bước `docker compose up --build` hãy gửi log cho P4 xử lý ngay trong ngày 28/10.
+=======
+# DockerApplication
+>>>>>>> 0bef199964252e67d57773dda1a6dc022f3b7dcb
