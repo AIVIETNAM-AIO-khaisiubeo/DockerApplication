@@ -1,64 +1,35 @@
-# MedTriage AI — Hướng dẫn bắt đầu
+# MedTriage AI
 
-Đây là project thực hành Docker với một ứng dụng AI hỗ trợ nghiên cứu ảnh X-quang. Project được chia thành 4 phần để các thành viên có thể làm riêng, sau đó mới kết nối lại.
+MedTriage AI là project học tập để thực hành cách đóng gói và kết nối một ứng dụng AI với Docker. Nhóm phát triển bốn module riêng, kiểm tra từng phần rồi mới ghép chúng thành một hệ thống.
 
-> **Lưu ý:** Kết quả `mock` là dữ liệu giả dùng để thử chương trình. Không dùng để đưa ra quyết định y khoa. Không tải dữ liệu bệnh nhân có thông tin định danh lên GitHub.
+> **Lưu ý:** các chế độ mock tạo dữ liệu giả để kiểm tra phần mềm. Chúng không đại diện cho dự đoán của model y khoa và không được dùng để đưa ra quyết định chẩn đoán hoặc điều trị. Không tải dữ liệu bệnh nhân có thông tin định danh lên GitHub.
 
-## Bạn nên đọc gì trước?
+## Bắt đầu ở đây
 
-1. **[Hướng dẫn bắt đầu](docs/TEAM_ONBOARDING.md)**: chuẩn bị máy, clone repo, chạy module được giao, kiểm thử và gửi Pull Request.
-2. **[Docker căn bản — thực hành từng bước](docs/DOCKER_BASICS.md)**: Docker image/container là gì, chạy lệnh nào, xem kết quả ở đâu.
-3. **[Hướng dẫn thành viên](docs/TEAM_GUIDE.md)**: cách bắt đầu, làm việc theo module, kiểm thử và gửi thay đổi.
-4. **[Làm module độc lập rồi ghép sau](docs/MODULE_INDEPENDENCE.md)**: hướng dẫn cho cả nhóm và leader.
-5. **[PLAN.md](PLAN.md)**: các công việc và mốc thời gian.
-6. **[Hợp đồng API](docs/CONTRACT.md)**: cách các module gửi dữ liệu cho nhau.
+Mở **[GETTING_STARTED_FOR_TEAM.md](docs/GETTING_STARTED_FOR_TEAM.md)** để cài công cụ, clone repository và chạy đúng module được giao. Các tài liệu còn lại được chia theo mục đích để tránh lặp lại cùng một hướng dẫn:
 
-## Project được chia thành 4 phần
+- [DOCKER_BASICS.md](docs/DOCKER_BASICS.md) — khái niệm Docker, port, volume và các lệnh thường dùng.
+- [TEAM_GUIDE.md](docs/TEAM_GUIDE.md) — kiểm thử module, kết quả mong đợi và xử lý lỗi.
+- [MODULE_INDEPENDENCE.md](docs/MODULE_INDEPENDENCE.md) — branch, Pull Request và quy trình tích hợp.
+- [CONTRACT.md](docs/CONTRACT.md) — endpoint và cấu trúc dữ liệu giữa các module.
+- [PLAN.md](PLAN.md) — công việc và kế hoạch của project.
 
-| Thành viên | Phần phụ trách | Thư mục code chính | Chạy thử riêng |
+## Bốn module
+
+| Module | Vai trò | Thư mục code chính | Compose chạy riêng |
 |---|---|---|---|
-| P1 | Giao diện người dùng (UI) | `services/01-ui/` | `docker-compose.p1.yml` |
-| P2 | API xử lý ảnh (Vision) | `services/02-vision/` | `docker-compose.p2.yml` |
-| P3 | API tạo ghi chú SOAP (LLM) | `services/03-llm/` | `docker-compose.p3.yml` |
-| P4 | Cơ sở dữ liệu và cấu hình Docker | `services/04-db/` | `docker-compose.p4.yml` |
+| P1 — UI | Giao diện để nhập nội dung thử nghiệm và xem kết quả | services/01-ui/ | docker-compose.p1.yml |
+| P2 — Vision | API nhận ảnh và trả kết quả theo định dạng đã thống nhất | services/02-vision/ | docker-compose.p2.yml |
+| P3 — LLM | API tạo ghi chú SOAP và mức ưu tiên | services/03-llm/ | docker-compose.p3.yml |
+| P4 — Database | PostgreSQL và schema lưu dữ liệu thử nghiệm | services/04-db/ | docker-compose.p4.yml |
 
-## Chạy module của riêng bạn
+Các Compose riêng dành cho phát triển và kiểm tra từng module. File docker-compose.yml dùng khi leader tích hợp và chạy toàn bộ stack.
 
-Trước tiên hãy clone repo và mở terminal **ở thư mục DockerApplication**. Cần cài Git và Docker Desktop (Windows/macOS) hoặc Docker Engine + Compose v2 (Linux).
+## Quy tắc làm việc của nhóm
 
-```bash
-git clone https://github.com/AIVIETNAM-AIO-khaisiubeo/DockerApplication.git
-cd DockerApplication
-```
-
-Chọn đúng một lệnh theo module được giao:
-
-```bash
-docker compose -f docker-compose.p1.yml up --build     # P1 — giao diện giả lập
-docker compose -f docker-compose.p2.yml up --build     # P2 — Vision API
-docker compose -f docker-compose.p3.yml up --build     # P3 — LLM API
-docker compose -f docker-compose.p4.yml up --build -d  # P4 — PostgreSQL thử nghiệm
-```
-
-Không cần chạy cả bốn lệnh. Chỉ chạy lệnh của module bạn phụ trách. Hướng dẫn chi tiết, địa chỉ để mở trong trình duyệt và cách kiểm tra kết quả có trong [TEAM_ONBOARDING.md](docs/TEAM_ONBOARDING.md) và [DOCKER_BASICS.md](docs/DOCKER_BASICS.md).
-
-## Khi nào chạy toàn bộ ứng dụng?
-
-Chỉ khi các module đã sẵn sàng tích hợp, leader mới chạy Compose chính:
-
-```bash
-docker compose up --build -d
-docker compose ps
-docker compose exec -T ui python smoke_test.py
-```
-
-Mở http://localhost:8501 để thử luồng từ giao diện đến các API và database. Lệnh smoke test chỉ dùng khi stack tích hợp đang chạy.
-
-## Cách nhóm làm việc với GitHub
-
-- Mỗi thành viên làm trên branch riêng và chỉ sửa phần được giao.
-- Tạo Pull Request vào branch `integration`, không merge trực tiếp vào `main`.
-- Leader review, ghép các module và kiểm thử toàn bộ hệ thống; khi ổn mới tạo Pull Request từ `integration` vào `main`.
-- Không commit file `.env`, mật khẩu thật, API key, dữ liệu bệnh nhân hoặc model weights lớn.
-- Nếu muốn đổi cách các module giao tiếp, báo nhóm và cập nhật `docs/CONTRACT.md` trước khi đổi code.
+- Mỗi thành viên làm trên branch cá nhân và chỉ sửa phần việc được giao.
+- Mở Pull Request vào integration; không commit trực tiếp vào main hoặc integration.
+- Leader review và ghép code, sau đó kiểm thử toàn bộ luồng. Chỉ đưa thay đổi từ integration sang main khi các kiểm tra cần thiết đạt yêu cầu.
+- Không tự ý đổi endpoint, tên trường JSON hoặc schema dùng chung. Trao đổi với nhóm và cập nhật docs/CONTRACT.md trước khi đổi code.
+- Không commit file .env, API key, mật khẩu thật, dữ liệu bệnh nhân có thể định danh hoặc model weights lớn.
 
