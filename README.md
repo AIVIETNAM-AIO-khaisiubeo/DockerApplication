@@ -6,7 +6,7 @@
 
 ## Bạn nên đọc gì trước?
 
-1. **[Hướng dẫn bắt đầu cho thành viên mới](docs/TEAM_ONBOARDING.md)**: chuẩn bị máy, clone repo, chạy module được giao, kiểm thử và gửi Pull Request.
+1. **[Hướng dẫn bắt đầu](docs/TEAM_ONBOARDING.md)**: chuẩn bị máy, clone repo, chạy module được giao, kiểm thử và gửi Pull Request.
 2. **[Docker căn bản — thực hành từng bước](docs/DOCKER_BASICS.md)**: Docker image/container là gì, chạy lệnh nào, xem kết quả ở đâu.
 3. **[Hướng dẫn thành viên](docs/TEAM_GUIDE.md)**: cách bắt đầu, làm việc theo module, kiểm thử và gửi thay đổi.
 4. **[Làm module độc lập rồi ghép sau](docs/MODULE_INDEPENDENCE.md)**: hướng dẫn cho cả nhóm và leader.
