@@ -124,7 +124,7 @@ P2_VISION_PORT=8011 docker compose -f docker-compose.p2.yml up --build
 Mỗi người chỉ chạy Compose riêng của mình, viết code/test trong thư mục được giao và commit trên branch riêng. Không cần khởi chạy toàn bộ ứng dụng mỗi lần sửa code.
 
 ### Giai đoạn B — Báo sẵn sàng tích hợp
-Mỗi thành viên gửi Pull Request với:
+Mỗi thành viên gửi Pull Request với base branch là `integration` và ghi:
 - Phạm vi và file đã thay đổi.
 - Lệnh chạy độc lập và kết quả test thực tế.
 - Những biến môi trường, weights, API keys hoặc điều kiện ngoài cần thiết (không gửi giá trị secret).
@@ -132,14 +132,14 @@ Mỗi thành viên gửi Pull Request với:
 
 ### Giai đoạn C — Integration owner ghép các module
 Sau khi review các module:
-1. Merge các PR vào nhánh tích hợp chung (ví dụ integration), không ghép thủ công bằng cách copy file.
+1. Merge các PR thành viên vào nhánh `integration` (đã có trong repository), không ghép thủ công bằng cách copy file.
 2. Chạy stack tích hợp: docker compose up --build -d.
 3. Chạy docker compose ps, kiểm tra health từng service và smoke test: docker compose exec -T ui python smoke_test.py.
 4. Thử luồng UI → Vision → LLM → DB; kiểm tra log, lỗi timeout và lịch sử lưu/đọc.
 5. Chạy các audit phù hợp trên stack thử nghiệm. Cảnh giác với audit4 vì có thể gọi docker compose down -v và xóa volume.
 6. Khi E2E và audit đạt yêu cầu, tạo PR từ nhánh tích hợp vào main.
 
-Nếu nhóm không muốn duy trì nhánh integration riêng, leader vẫn có thể merge PR tuần tự vào main chỉ sau khi các module vượt qua tiêu chí độc lập; nhưng một nhánh integration riêng giúp main ổn định cho tới khi ghép xong.
+Nhánh `main` giữ phiên bản ổn định. Thành viên không mở PR module trực tiếp vào `main`; chỉ mở PR từ `integration` sang `main` sau khi stack đầy đủ vượt qua kiểm thử E2E và các audit bắt buộc.
 
 ## 5. Những điều không nên làm
 
