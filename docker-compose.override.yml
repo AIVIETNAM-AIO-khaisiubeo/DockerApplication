@@ -1,5 +1,8 @@
-# Tự động được nạp khi chạy `docker compose up` (môi trường DEV).
-# Bind Mount mã nguồn + live reload. Audit 2-4 dùng: docker compose -f docker-compose.yml ...
+# File hỗ trợ phát triển: Docker Compose tự gộp file này khi chạy "docker compose up" mặc định.
+# Các thư mục code trên laptop được chia sẻ vào container; server sẽ tự tải lại khi sửa code.
+# Khi chỉ muốn dùng cấu hình gốc, bỏ qua file này bằng:
+# docker compose -f docker-compose.yml up --build -d
+# Giải thích bind mount/reload: docs/DOCKER_BASICS.md
 services:
   ui:
     volumes:
