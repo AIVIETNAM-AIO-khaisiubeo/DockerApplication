@@ -62,4 +62,3 @@ Mở http://localhost:8501 để thử luồng từ giao diện đến các API 
 - Không commit file `.env`, mật khẩu thật, API key, dữ liệu bệnh nhân hoặc model weights lớn.
 - Nếu muốn đổi cách các module giao tiếp, báo nhóm và cập nhật `docs/CONTRACT.md` trước khi đổi code.
 
-**Bạn không cần trở thành chuyên gia DevOps mới bắt đầu được.** Hãy chạy module của mình, đọc log khi có lỗi, ghi lại cách kiểm thử và hỏi nhóm khi chưa rõ. Mock chỉ giúp phát triển phần mềm độc lập; nó không thay thế việc kiểm tra model thật sau này.
