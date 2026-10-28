@@ -1,0 +1,26 @@
+# P3-only development stack. No UI, Vision, or database is started.
+# Local development defaults to mock mode. Debug endpoints remain disabled.
+name: medtriage-p3-dev
+services:
+  llm:
+    build: ./services/03-llm
+    ports:
+      - "127.0.0.1:${P3_LLM_PORT:-8002}:8000"
+    environment:
+      LLM_MODE: ${P3_LLM_MODE:-mock}
+      MODEL_DIR: /models
+      ENABLE_DEBUG: "0"
+    volumes:
+      - ./services/03-llm/app:/app/app
+      - p3_llm_models:/models
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  p3_llm_models:
