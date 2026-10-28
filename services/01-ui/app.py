@@ -1,6 +1,8 @@
-"""Module 01 - Giao diện (Streamlit)   [P1]
-Luồng: ảnh + triệu chứng -> VISION /predict -> LLM /soap -> lưu DB -> hiển thị.
-Việc của P1: làm đẹp/hoàn thiện UI, xử lý lỗi khi service sập, trang lịch sử, hiển thị độ trễ.
+"""P1 — Giao diện web.
+
+Khi chạy toàn hệ thống, UI gửi ảnh tới Vision, gửi triệu chứng và kết quả Vision tới LLM,
+sau đó lưu kết quả vào PostgreSQL. Khi UI_MOCK_BACKENDS=1, các phản hồi chỉ được giả lập
+để P1 kiểm tra giao diện độc lập; không gọi model thật hoặc lưu vào database.
 """
 import hashlib
 import os
