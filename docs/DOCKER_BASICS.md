@@ -1,213 +1,122 @@
-# Docker căn bản — học bằng project MedTriage AI
+# Docker căn bản — các khái niệm cần dùng trong project
 
-Tài liệu này dành cho thành viên đã học Machine Learning/Deep Learning nhưng chưa quen phát triển phần mềm và MLOps. Bạn không cần học hết lý thuyết Docker trước. Hãy chạy các bước theo thứ tự, đọc kết quả và thử thay đổi nhỏ.
+Tài liệu này giải thích Docker và những lệnh cơ bản. Để chạy module lần đầu, dùng [GETTING_STARTED_FOR_TEAM.md](GETTING_STARTED_FOR_TEAM.md). Để kiểm tra từng API và xử lý lỗi, dùng [TEAM_GUIDE.md](TEAM_GUIDE.md).
 
-## 1. Docker dùng để làm gì?
+## 1. Docker giúp ích gì?
 
-Giả sử code của bạn chạy được trên laptop, nhưng máy thành viên khác lại thiếu phiên bản Python hoặc thiếu thư viện. Docker giúp đóng gói code cùng môi trường cần thiết để mọi người chạy gần như giống nhau.
+Code có thể chạy trên laptop của bạn nhưng không chạy trên máy bạn khác vì khác phiên bản Python hoặc thiếu thư viện. Docker đóng gói ứng dụng với môi trường cần thiết để các thành viên chạy theo cách nhất quán hơn.
 
-Trong project này, mỗi phần chạy trong một môi trường riêng:
-- UI: trang web để tải ảnh và xem kết quả.
-- Vision: API nhận ảnh.
-- LLM: API tạo ghi chú SOAP.
-- DB: nơi lưu lịch sử ca thử nghiệm.
+Trong project MedTriage AI:
+- UI là trang web để nhập nội dung và xem kết quả.
+- Vision là API nhận ảnh.
+- LLM là API tạo ghi chú SOAP.
+- DB là dịch vụ PostgreSQL lưu dữ liệu thử nghiệm.
 
-Docker **không tự tạo ra model ML** và cũng không làm model chính xác hơn. Nó giúp đóng gói, chạy, kết nối, kiểm soát tài nguyên và triển khai các phần mềm của dự án.
+Docker không tự tạo model ML và không làm model chính xác hơn. Nó giúp chuẩn bị môi trường, chạy và kết nối các thành phần phần mềm.
 
-## 2. Sáu khái niệm cần nhớ
+## 2. Sáu khái niệm quan trọng
 
-| Từ | Hiểu đơn giản | Ví dụ trong repo |
+| Khái niệm | Hiểu đơn giản | Ví dụ trong repo |
 |---|---|---|
-| **Image** (gói Docker) | Bản đóng gói để tạo ra môi trường chạy | Build từ `services/02-vision/Dockerfile` |
-| **Container** | Một lần chạy của image, giống một tiến trình được cách ly | Container tên `vision` |
-| **Dockerfile** | Công thức để tạo image | `services/03-llm/Dockerfile` |
-| **Docker Compose** | File mô tả những container nào cần chạy và kết nối với nhau ra sao | `docker-compose.yml` |
-| **Port** (cổng) | Địa chỉ để chương trình trên máy bạn truy cập ứng dụng đang chạy | P2 mở cổng máy bạn `8001`, bên trong container là `8000` |
-| **Volume** (vùng lưu dữ liệu) | Nơi lưu file/dữ liệu để chúng không mất chỉ vì container bị tạo lại | `db_data`, `p2_vision_models` |
+| **Dockerfile** | Công thức chuẩn bị môi trường chạy | services/02-vision/Dockerfile |
+| **Image** | Gói được tạo từ Dockerfile, chứa runtime và thư viện cần thiết | Image của Vision API |
+| **Container** | Một lần chạy của image | Container thuộc service vision |
+| **Compose** | File mô tả các service, cổng, mạng và volume | docker-compose.yml |
+| **Port** | Cổng để máy phát triển truy cập ứng dụng trong container | Host port 8001 chuyển tới port 8000 trong Vision |
+| **Volume** | Nơi giữ dữ liệu ngoài vòng đời container | Volume của PostgreSQL hoặc model cache |
 
-Ví dụ dễ nhớ: Dockerfile là công thức nấu ăn, image là món đã chuẩn bị sẵn theo công thức, container là lần bạn bày món đó ra sử dụng. Nếu container bị xoá rồi tạo lại, dữ liệu trong volume có thể vẫn còn.
+Có thể hình dung Dockerfile là công thức, image là gói được chuẩn bị từ công thức, còn container là một lần chạy gói đó.
 
-## 3. Đọc Dockerfile trong repo
+## 3. Dockerfile hoạt động thế nào?
 
-Mỗi module có một file tên `Dockerfile`. File này nói cho Docker biết cách chuẩn bị môi trường để chạy code.
+Ví dụ rút gọn:
 
-Ví dụ đơn giản hoá từ Dockerfile của UI:
-
-```dockerfile
+~~~dockerfile
 FROM python:3.11-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
-```
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+~~~
 
-Đọc từng dòng:
-- `FROM`: bắt đầu từ một môi trường có sẵn. Ở đây là Python 3.11.
-- `WORKDIR`: chọn thư mục làm việc bên trong container.
-- `COPY requirements.txt .`: đưa danh sách thư viện cần cài vào container.
-- `RUN pip install ...`: cài các thư viện khi tạo image.
-- `COPY . .`: copy code của module vào image.
-- `CMD`: lệnh được chạy khi container khởi động.
+- FROM chọn môi trường nền.
+- WORKDIR đặt thư mục làm việc trong container.
+- COPY đưa file từ project vào image.
+- RUN thực hiện lệnh lúc build image, ví dụ cài thư viện.
+- CMD là lệnh chính khi container khởi động.
 
-Vì sao thường copy `requirements.txt` và cài thư viện trước khi copy toàn bộ code? Nếu chỉ code thay đổi mà danh sách thư viện không đổi, Docker có thể dùng lại lớp cài thư viện đã tạo ở lần build trước. Đây gọi là **build cache** (tái sử dụng các bước đã hoàn thành), giúp build nhanh hơn.
+Cài thư viện từ requirements.txt trước khi copy toàn bộ code có thể giúp Docker tái sử dụng build cache khi chỉ có code thay đổi. Cache giúp build nhanh hơn; nó không phải dữ liệu của ứng dụng.
 
-**Lưu ý:** `EXPOSE 8000` trong Dockerfile chỉ ghi chú cổng mà ứng dụng sử dụng bên trong container. Để mở cổng ra laptop, cần cấu hình `ports` trong file Compose.
+EXPOSE trong Dockerfile chỉ ghi chú cổng mà ứng dụng sử dụng bên trong container. Muốn truy cập ứng dụng từ máy phát triển, cần cấu hình port trong Compose.
 
-## 4. Các lệnh Docker thường dùng
+## 4. Các lệnh thường dùng
 
-Chạy các lệnh từ thư mục gốc repository, trừ khi hướng dẫn ghi khác.
+Chạy các lệnh tại thư mục gốc repository, trừ khi có hướng dẫn khác.
 
-| Lệnh | Nó làm gì? |
+| Lệnh | Ý nghĩa |
 |---|---|
-| `docker --version` | Kiểm tra Docker đã cài chưa |
-| `docker compose version` | Kiểm tra Docker Compose |
-| `docker compose -f docker-compose.p2.yml up --build` | Tạo image nếu cần rồi chạy stack P2 |
-| `docker compose -f docker-compose.p2.yml ps` | Xem container còn chạy không |
-| `docker compose -f docker-compose.p2.yml logs` | Đọc log khi có lỗi |
-| `docker compose -f docker-compose.p2.yml down` | Dừng và xoá container của stack P2 |
-| `docker compose exec -T vision sh` | Mở shell bên trong container đang chạy (chỉ dùng khi cần tìm hiểu thêm) |
+| docker --version | Kiểm tra Docker CLI. |
+| docker compose version | Kiểm tra Docker Compose v2. |
+| docker compose -f docker-compose.p2.yml up --build | Build image nếu cần rồi chạy stack P2. |
+| docker compose -f docker-compose.p2.yml ps | Xem trạng thái container thuộc stack P2. |
+| docker compose -f docker-compose.p2.yml logs --tail=100 | Xem 100 dòng log gần nhất. |
+| docker compose -f docker-compose.p2.yml down | Dừng và xoá container/network của stack P2. |
+| docker compose exec -T vision sh | Mở shell trong container vision đang chạy; chỉ dùng khi cần kiểm tra sâu hơn. |
 
-**Phân biệt hai lệnh cuối quan trọng:**
-- `down` thường xoá container và network do Compose tạo, nhưng giữ Named Volume.
-- `down -v` còn xoá cả Named Volume thuộc stack đó. Có thể mất database hoặc model cache. Đừng dùng lệnh này chỉ để “dọn dẹp” nếu chưa chắc dữ liệu có thể xoá.
+Tùy module, thay docker-compose.p2.yml và tên service vision bằng tên phù hợp. Các lệnh chạy và test cụ thể được liệt kê trong [GETTING_STARTED_FOR_TEAM.md](GETTING_STARTED_FOR_TEAM.md) và [TEAM_GUIDE.md](TEAM_GUIDE.md).
 
-## 5. Port: vì sao P2 dùng 8001 thay vì 8000?
+## 5. Host port và container port
 
-Trong Compose độc lập của P2, cấu hình tương tự:
+Một cấu hình Compose có dạng:
 
-```yaml
+~~~yaml
 ports:
   - "127.0.0.1:8001:8000"
-```
+~~~
 
 Đọc từ phải sang trái:
-- `8000`: cổng bên trong container, nơi FastAPI lắng nghe.
-- `8001`: cổng trên máy của bạn.
-- `127.0.0.1`: chỉ cho phép truy cập từ chính máy của bạn.
+- 8000 là cổng trong container, nơi API lắng nghe.
+- 8001 là cổng trên máy phát triển.
+- 127.0.0.1 giới hạn truy cập vào chính máy phát triển.
 
-Vì vậy, mở `http://localhost:8001/docs` để thử API P2 từ trình duyệt. Bên trong hệ thống tích hợp, UI gọi tên service `vision` và cổng container `8000`; các container giao tiếp qua mạng Docker, không dùng cổng localhost của máy host.
+Vì vậy, khi P2 chạy riêng, bạn mở http://localhost:8001/docs. Trong stack tích hợp, UI gọi Vision qua hostname service nội bộ vision và cổng 8000; hai container giao tiếp qua mạng Docker. Trong container UI, localhost không phải container Vision hoặc máy phát triển.
 
-## 6. Volume và Bind Mount: code khác dữ liệu
+## 6. Bind mount và Named Volume
 
-### Bind mount — chia sẻ thư mục code
+### Bind mount — chia sẻ file từ máy vào container
+
 Ví dụ:
 
-```yaml
+~~~yaml
 volumes:
   - ./services/02-vision/app:/app/app
-```
+~~~
 
-Nghĩa là thư mục code trên laptop được chia sẻ vào container. Khi bạn sửa file Python, container nhìn thấy thay đổi và server có thể tự reload. Cách này tiện khi phát triển.
+Thư mục code ở máy phát triển được chia sẻ vào container. Khi sửa file, chương trình trong container có thể nhìn thấy thay đổi; việc reload còn phụ thuộc cách server được cấu hình.
 
 ### Named Volume — giữ dữ liệu
+
 Ví dụ:
 
-```yaml
+~~~yaml
 volumes:
   - p2_vision_models:/models
-```
+~~~
 
-Named Volume là vùng dữ liệu Docker tự quản lý. Ta dùng nó để lưu weights hoặc cache model. Với PostgreSQL, volume giúp dữ liệu tồn tại qua việc dừng và tạo lại container.
+Named Volume do Docker quản lý, phù hợp để giữ database hoặc model cache khi container được tạo lại. Code nguồn thường nằm trong repository; dữ liệu cần giữ qua nhiều lần chạy có thể đặt trong Named Volume.
 
-**Mẹo:** code thường nằm trong thư mục repo và được bind mount; dữ liệu cần giữ lâu hơn vòng đời container thường nằm trong Named Volume.
+**Cẩn thận:** docker compose down thường giữ Named Volume. docker compose down -v có thể xoá volume của stack đó và làm mất dữ liệu database hoặc cache. Chỉ dùng -v khi chắc chắn dữ liệu có thể bị xoá.
 
-## 7. Tại sao mỗi module có file Compose riêng?
+## 7. Vì sao repo có nhiều file Compose?
 
-Compose tích hợp `docker-compose.yml` chạy cả bốn service. Điều đó tốt khi kiểm thử toàn hệ thống, nhưng chậm và dễ gây rối khi bạn chỉ đang sửa một phần.
+- docker-compose.p1.yml, docker-compose.p2.yml, docker-compose.p3.yml và docker-compose.p4.yml dùng để phát triển/test riêng từng module.
+- docker-compose.yml dùng cho stack tích hợp có UI, Vision, LLM và PostgreSQL.
 
-Các file riêng giúp:
-- P1: chạy giao diện với backend giả lập.
-- P2: chạy riêng Vision API.
-- P3: chạy riêng LLM API.
-- P4: chạy riêng PostgreSQL với dữ liệu thử nghiệm.
+Compose riêng giúp một thành viên làm việc mà không cần chờ các module còn lại. Nó không thay thế kiểm thử tích hợp. Xem [MODULE_INDEPENDENCE.md](MODULE_INDEPENDENCE.md) để hiểu quy trình ghép code.
 
-Các file này là công cụ **phát triển độc lập**, không thay thế Compose tích hợp khi cần kiểm tra cả luồng. Mọi kết quả mock chỉ để test phần mềm, không phải kết quả y khoa.
+## 8. Cần đọc gì tiếp?
 
-## 8. Thực hành theo module
-
-### P1 — UI
-
-Chạy:
-
-```bash
-docker compose -f docker-compose.p1.yml up --build
-```
-
-Mở `http://localhost:8501`, chọn ảnh tổng hợp `data/sample_cases/demo_synthetic.png` và nhập ghi chú thử nghiệm. Bạn sẽ thấy giao diện kết quả, nhưng banner báo **UI ISOLATION MODE** cho biết backend đang được giả lập. Không có model thật chạy và không ghi vào PostgreSQL.
-
-Thử sửa tiêu đề trong `services/01-ui/app.py`, lưu file rồi quan sát trình duyệt. Dừng bằng Ctrl+C; nếu cần xoá container, mở terminal thứ hai và chạy `docker compose -f docker-compose.p1.yml down`.
-
-### P2 — Vision API
-
-Chạy:
-
-```bash
-docker compose -f docker-compose.p2.yml up --build
-```
-
-Mở `http://localhost:8001/docs`. Đây là trang Swagger tự tạo từ FastAPI, cho phép thử endpoint thủ công. Mở `GET /health` rồi bấm **Try it out → Execute**. Mong đợi phản hồi JSON có `status: ok` và `mode: mock`.
-
-Sau đó thử `POST /predict`: chọn ảnh PNG/JPG và bấm Execute. Mong đợi JSON có `probabilities`, `metadata_removed`, `mode`, `latency_ms`. Các số trong mode mock chỉ là kết quả giả lập để kiểm tra định dạng, không phải dự đoán bệnh thật.
-
-### P3 — LLM API
-
-Chạy:
-
-```bash
-docker compose -f docker-compose.p3.yml up --build
-```
-
-Mở `http://localhost:8002/docs`, thử `GET /health`, sau đó `POST /soap`. Request cần có `symptoms` và `findings`. Mong đợi response có `soap` với bốn mục `S`, `O`, `A`, `P`, cùng `priority`, `mode`, `latency_ms`.
-
-### P4 — Database
-
-Chạy:
-
-```bash
-docker compose -f docker-compose.p4.yml up --build -d
-docker compose -f docker-compose.p4.yml ps
-docker compose -f docker-compose.p4.yml exec db psql -U medtriage -d medtriage -c "\\dt"
-```
-
-Mong đợi thấy bảng `cases`. P4 dùng host port `5433`, và volume riêng cho database phát triển. Không cần mở trang web trong trình duyệt; PostgreSQL là dịch vụ database, không phải giao diện web.
-
-## 9. Phát triển độc lập và tích hợp khác nhau thế nào?
-
-**Khi đang code:** chỉ chạy Compose riêng của bạn. Bạn không cần chờ model của thành viên khác, cũng không cần chạy toàn hệ thống.
-
-**Khi muốn tích hợp:** sau khi từng module có thể chạy độc lập và có test, thành viên mở Pull Request vào nhánh `integration`. Leader review và ghép các phần, rồi mới chạy:
-
-```bash
-docker compose up --build -d
-docker compose ps
-docker compose exec -T ui python smoke_test.py
-```
-
-Mở `http://localhost:8501` và kiểm tra luồng UI → Vision → LLM → DB. Khi tích hợp, các module dùng tên service nội bộ như `vision:8000`, `llm:8000`, `db:5432`; đừng thay các địa chỉ này bằng `localhost` trong cấu hình container.
-
-Khi toàn bộ luồng và các audit được yêu cầu đã kiểm tra đạt, leader tạo Pull Request từ `integration` sang `main`.
-
-## 10. Nếu gặp lỗi, kiểm tra theo thứ tự
-
-1. **Docker có đang chạy?** Chạy `docker version`. Nếu phần Server báo lỗi, mở Docker Desktop hoặc khởi động Docker Engine.
-2. **Container đã chạy chưa?** Dùng file Compose đúng module, thêm `ps`. Nếu chưa chạy, đọc log.
-3. **Build hay chạy bị lỗi?** Dùng `docker compose -f <file-compose-cua-ban> logs` và đọc dòng lỗi đầu tiên.
-4. **Port đã bị sử dụng?** Đổi biến port dành cho module trong lệnh/môi trường rồi chạy lại.
-5. **Bạn có đang dùng đúng Compose file?** P2 chạy bằng `docker-compose.p2.yml`, còn Compose gốc là dành cho cả hệ thống.
-6. **Bạn vừa đổi requirements.txt hoặc Dockerfile?** Cần build lại service. Chỉ sửa Python thường có thể được reload tự động ở stack dev.
-
-Đừng vội xoá volume hoặc chuyển sang mode real để né lỗi. Hãy copy thông báo lỗi và gửi nhóm cùng lệnh đã chạy, kết quả mong đợi, và bước bạn đã thử.
-
-## 11. Từ điển từ thường gặp
-
-- **API:** cách một chương trình yêu cầu chương trình khác làm việc, theo địa chỉ và định dạng đã thống nhất.
-- **Endpoint:** một đường dẫn của API, ví dụ `/predict` hoặc `/health`.
-- **JSON:** định dạng dữ liệu có cấu trúc dùng để gửi/nhận kết quả.
-- **Mock:** kết quả giả được tạo ra để thử phần mềm khi model/dịch vụ thật chưa sẵn sàng.
-- **Health check:** kiểm tra nhanh một service còn phản hồi và sẵn sàng không.
-- **Log:** bản ghi thông báo, cảnh báo và lỗi khi chương trình chạy.
-- **Build:** tạo hoặc cập nhật image từ Dockerfile.
-- **MLOps:** các cách tổ chức việc đưa model ML vào ứng dụng có thể chạy, kiểm thử, theo dõi và cập nhật được.
-
-**Nếu chỉ nhớ ba điều:** mỗi module có thể chạy riêng; đọc log khi có lỗi; và chỉ tích hợp sau khi module đã kiểm thử độc lập.
+- Cài công cụ, clone repository, chọn lệnh theo module: [GETTING_STARTED_FOR_TEAM.md](GETTING_STARTED_FOR_TEAM.md).
+- Kiểm tra response, trạng thái và log: [TEAM_GUIDE.md](TEAM_GUIDE.md).
+- Quy tắc API giữa UI, Vision, LLM và DB: [CONTRACT.md](CONTRACT.md).
