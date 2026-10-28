@@ -1,0 +1,15 @@
+# Tự động được nạp khi chạy `docker compose up` (môi trường DEV).
+# Bind Mount mã nguồn + live reload. Audit 2-4 dùng: docker compose -f docker-compose.yml ...
+services:
+  ui:
+    volumes:
+      - ./services/01-ui:/app
+    command: ["streamlit", "run", "app.py", "--server.address=0.0.0.0", "--server.runOnSave=true", "--server.fileWatcherType=poll"]
+  vision:
+    volumes:
+      - ./services/02-vision/app:/app/app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+  llm:
+    volumes:
+      - ./services/03-llm/app:/app/app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -1,0 +1,2 @@
+# Module 04 không có phụ thuộc Python (giữ file này cho đồng nhất cấu trúc 4 service).
+# Nếu P4 viết thêm script Python (backup, kiểm tra), liệt kê thư viện ở đây.

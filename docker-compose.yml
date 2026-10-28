@@ -1,0 +1,101 @@
+# MedTriage AI - điều phối 4 container.
+#   Chạy nhanh : cp .env.example .env && docker compose up --build
+#   Dev (mặc định): Compose tự gộp docker-compose.override.yml -> bind mount + live reload (Audit 1).
+#   Bản "production" cho Audit 2-4: docker compose -f docker-compose.yml up --build
+name: medtriage
+
+services:
+  # ---------------- Module 01 - Giao diện (P1) ----------------
+  ui:
+    build: ./services/01-ui
+    ports:
+      - "${UI_PORT:-8501}:8501"
+    environment:
+      VISION_URL: http://vision:8000
+      LLM_URL: http://llm:8000
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-medtriage}
+      POSTGRES_USER: ${POSTGRES_USER:-medtriage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - ./data:/data:ro
+    networks: [frontend, backend]
+    depends_on:
+      db:     {condition: service_healthy}
+      vision: {condition: service_healthy}
+      llm:    {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ---------------- Module 02 - API thị giác (P2) ----------------
+  vision:
+    build: ./services/02-vision
+    environment:
+      MODEL_MODE: ${MODEL_MODE:-mock}      # mock | real
+      MODEL_DIR: /models
+    volumes:
+      - vision_models:/models              # Named Volume #1: trọng số mô hình thị giác
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------------- Module 03 - API LLM (P3) ----------------
+  llm:
+    build: ./services/03-llm
+    environment:
+      LLM_MODE: ${LLM_MODE:-mock}          # mock | real
+      MODEL_DIR: /models
+      ENABLE_DEBUG: ${ENABLE_DEBUG:-0}     # =1 mở /debug/* phục vụ Audit 3 (KHÔNG bật khi demo)
+    volumes:
+      - llm_models:/models                 # Named Volume #2: trọng số / cache LLM
+    networks: [backend]
+    deploy:
+      resources:
+        limits:                            # TODO(P3): chỉnh theo model thật, dùng cho Audit 3
+          memory: 512M
+          cpus: "1.0"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------------- Module 04 - Cơ sở dữ liệu (P4) ----------------
+  db:
+    build: ./services/04-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-medtriage}
+      POSTGRES_USER: ${POSTGRES_USER:-medtriage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - db_data:/var/lib/postgresql/data   # Named Volume #3: dữ liệu ca bệnh
+    networks: [backend]
+    # TODO(P4): thử chạy non-root:  user: postgres   (rồi kiểm tra volume + init.sql vẫn hoạt động)
+    # KHÔNG publish cổng 5432 ra host (Audit 4 kiểm tra điều này).
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+networks:
+  frontend: {}     # chỉ UI; nơi duy nhất publish cổng ra host
+  backend: {}      # UI + vision + llm + db. TODO(P4): cân nhắc `internal: true` sau khi weights đã nằm trong volume
+
+volumes:
+  vision_models:
+  llm_models:
+  db_data:

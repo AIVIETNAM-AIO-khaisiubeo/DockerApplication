@@ -1,0 +1,279 @@
+% Biên dịch bằng XeLaTeX (hoặc LuaLaTeX), ví dụ: xelatex medtriage_ai_proposal_vi.tex
+% Trên Overleaf: Menu -> Compiler -> chọn XeLaTeX.
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}   % mặc định dùng Latin Modern, hỗ trợ đầy đủ dấu tiếng Việt
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,fit,backgrounds,shapes.geometric}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\hypersetup{colorlinks=true, linkcolor=blue!50!black, urlcolor=blue!50!black}
+\setlist{itemsep=2pt, topsep=4pt}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+\emergencystretch=2em
+
+% Việt hóa các tiêu đề tự động
+\renewcommand{\contentsname}{Mục lục}
+\renewcommand{\figurename}{Hình}
+\renewcommand{\tablename}{Bảng}
+\renewcommand{\abstractname}{Tóm tắt}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  frame=single,
+  backgroundcolor=\color{black!4},
+  rulecolor=\color{black!25},
+  breaklines=true,
+  columns=fullflexible
+}
+
+\newcommand{\svc}[1]{\texttt{#1}}
+
+\title{\textbf{MedTriage AI}\\[4pt]
+\large Hệ thống Sàng lọc và Phân loại Bệnh nhân Đa phương thức\\
+đóng gói với Docker, kèm các bài kiểm thử DevSecOps Readiness Audit\\[4pt]
+\normalsize Đề cương dự án -- Tổng quan báo cáo}
+\author{Nhóm thực hiện: Thành viên 1 -- Thành viên 2 -- Thành viên 3 -- Thành viên 4}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Khi đưa các mô hình AI y tế hiện đại vào thực tế, trở ngại thường không nằm ở độ chính xác mà ở việc vận hành chúng một cách ổn định, an toàn và có thể tái lập ngay trong bệnh viện. Đề cương này giới thiệu \textbf{MedTriage AI}, một pipeline đầu--cuối nhận ảnh X-quang ngực cùng ghi chú triệu chứng, xóa thông tin cá nhân trong metadata, ước lượng xác suất bệnh lý, soạn bệnh án chuẩn SOAP kèm nhãn mức độ ưu tiên và lưu lịch sử ca bệnh. Hệ thống được đóng gói thành bốn vi dịch vụ (microservice) Docker độc lập và khởi chạy chỉ bằng một lệnh. Thay vì xem Docker chỉ là công cụ phân phối, chúng tôi coi Docker là đối tượng nghiên cứu: bốn bài kiểm thử DevSecOps Readiness Audit định lượng cách từng cơ chế của Docker giải quyết các rủi ro vận hành cụ thể của AI y tế. Tài liệu này trình bày vấn đề, phương pháp nghiên cứu, các kỹ thuật triển khai và lộ trình từ thiết kế đến sản phẩm cuối cùng.
+\end{abstract}
+
+\tableofcontents
+\bigskip
+
+%---------------------------------------------------------------
+\section{Đặt vấn đề}
+%---------------------------------------------------------------
+Việc đưa một mô hình AI y tế hiện đại từ môi trường nghiên cứu vào bệnh viện làm lộ ra hàng loạt thách thức vận hành, phần lớn không liên quan đến chất lượng mô hình:
+
+\begin{itemize}
+  \item \textbf{Xung đột thư viện phần mềm.} Bộ công cụ xử lý ảnh y tế (đọc DICOM, tiền xử lý ảnh, mô hình thị giác) và bộ công cụ LLM thường yêu cầu các phiên bản thư viện Python khác nhau, nhiều khi không tương thích. Cài chung vào một môi trường dẫn đến tình trạng ``dependency hell'' và các bản build dễ vỡ.
+  \item \textbf{Trọng số mô hình và image nặng.} Mô hình thị giác và ngôn ngữ có dung lượng lớn. Image xây dựng thiếu tối ưu sẽ phình to, build lại chậm và trọng số có thể bị tải lại mỗi lần khởi động, làm chậm khả năng phục hồi và tốn băng thông.
+  \item \textbf{Bảo mật dữ liệu bệnh nhân.} Ảnh và ghi chú chứa thông tin sức khỏe cá nhân (metadata DICOM/EXIF, định danh). Các dịch vụ cần được cô lập khỏi mạng ngoài, chạy với đặc quyền tối thiểu và không để lộ định danh cho các tầng phía sau.
+  \item \textbf{Tính ổn định khi vận hành.} Một container bị sập hoặc thiếu bộ nhớ không được phép kéo theo toàn bộ quy trình phân loại. Hệ thống cần tự phục hồi và giới hạn mức dùng tài nguyên.
+  \item \textbf{Khả năng tái lập.} Nhóm CNTT bệnh viện, lập trình viên và người đánh giá dùng Linux, Windows và macOS khác nhau. Câu ``chạy được trên máy tôi'' là không chấp nhận được khi kết quả ảnh hưởng đến việc ưu tiên lâm sàng.
+  \item \textbf{Tính bền vững của dữ liệu.} Lịch sử ca bệnh phải được giữ nguyên khi container khởi động lại, bị thay thế hoặc nâng cấp.
+\end{itemize}
+
+\textbf{Câu hỏi nghiên cứu.} \emph{Các cơ chế cốt lõi của Docker (cô lập môi trường, image phân lớp, volume, mạng, health check, giới hạn tài nguyên và người dùng không đặc quyền) giúp một pipeline AI y tế đa phương thức đạt mức tái lập, hiệu quả, chịu lỗi và an toàn đến đâu để sẵn sàng triển khai trong bệnh viện?}
+
+%---------------------------------------------------------------
+\section{Mục tiêu và phạm vi}
+%---------------------------------------------------------------
+\begin{enumerate}
+  \item Thiết kế và xây dựng pipeline phân loại bệnh nhân gồm bốn dịch vụ, mỗi dịch vụ được đóng gói Docker độc lập và điều phối bằng Docker Compose.
+  \item Xác định và thực hiện bốn bài \emph{DevSecOps Readiness Audit} có thể tái lập, mỗi bài nhắm vào một nhóm rủi ro vận hành.
+  \item Thu thập dữ liệu thực nghiệm thô (log, thời gian, dung lượng image, kết quả suy luận) và phân tích theo các chỉ số được xác định trước.
+  \item Bàn giao ứng dụng chạy được, báo cáo kỹ thuật LaTeX và repo GitHub kèm script tự động chạy các bài audit.
+\end{enumerate}
+
+\textbf{Lưu ý về phạm vi.} Các mô hình y tế (thị giác và LLM) là thành phần có thể thay thế; đóng góp của dự án nằm ở \emph{kiến trúc triển khai và việc đánh giá nó}, không phải ở huấn luyện mô hình mới. Hệ thống là nguyên mẫu nghiên cứu, không phải thiết bị y tế được chứng nhận; kết quả đầu ra chỉ mang tính hỗ trợ ra quyết định.
+
+%---------------------------------------------------------------
+\section{Phương pháp nghiên cứu}
+%---------------------------------------------------------------
+Chúng tôi áp dụng phương pháp \emph{thiết kế rồi kiểm thử, dẫn dắt bởi rủi ro}. Mỗi giai đoạn tạo ra một sản phẩm trung gian làm đầu vào cho giai đoạn sau; đây chính là cách đi đến kết quả cuối cùng.
+
+\begin{enumerate}
+  \item \textbf{Xác định rủi ro.} Rút ra các rủi ro vận hành khi triển khai AI lâm sàng (Mục 1) và ánh xạ mỗi rủi ro tới cơ chế Docker được kỳ vọng sẽ giảm thiểu nó.
+  \item \textbf{Phân rã kiến trúc.} Chia pipeline theo ranh giới chức năng và ranh giới phụ thuộc thành bốn dịch vụ, sao cho bộ thư viện xử lý ảnh và bộ thư viện LLM không bao giờ dùng chung một môi trường.
+  \item \textbf{Đóng gói container.} Viết \texttt{Dockerfile}, \texttt{.dockerignore} và \texttt{requirements.txt} riêng cho từng dịch vụ; xây dựng file điều phối trung tâm \texttt{docker-compose.yml} và \texttt{.env.example}.
+  \item \textbf{Tích hợp.} Kết nối các dịch vụ qua Docker DNS nội bộ, hai mạng và ba Named Volume; cố định thứ tự khởi động bằng phụ thuộc dựa trên health check.
+  \item \textbf{Thiết kế bài audit.} Với mỗi rủi ro, xác định giả thuyết, cấu hình cơ sở (naive), can thiệp (cơ chế Docker), chỉ số đo và script tự động.
+  \item \textbf{Thực nghiệm.} Chạy các bài audit trên bộ dữ liệu nhỏ được chọn lọc (15--20 ca X-quang ngực kèm ghi chú triệu chứng) và lưu lại log thô.
+  \item \textbf{Phân tích và báo cáo.} So sánh cấu hình cơ sở với cấu hình có can thiệp, thảo luận các đánh đổi và ghi nhận phát hiện trong báo cáo kỹ thuật.
+\end{enumerate}
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+  node distance=6mm and 4mm,
+  stage/.style={draw, rounded corners, fill=blue!6, minimum width=2.1cm, minimum height=1.0cm, align=center, font=\small},
+  arr/.style={-{Stealth[length=2mm]}, thick}
+]
+  \node[stage] (a) {Xác định\\rủi ro};
+  \node[stage, right=of a] (b) {Phân rã\\dịch vụ};
+  \node[stage, right=of b] (c) {Đóng gói\\\& điều phối};
+  \node[stage, below=of c] (d) {Thiết kế\\bài audit};
+  \node[stage, left=of d] (e) {Chạy\\thực nghiệm};
+  \node[stage, left=of e] (f) {Phân tích\\\& báo cáo};
+  \draw[arr] (a) -- (b);
+  \draw[arr] (b) -- (c);
+  \draw[arr] (c) -- (d);
+  \draw[arr] (d) -- (e);
+  \draw[arr] (e) -- (f);
+\end{tikzpicture}
+\caption{Quy trình thiết kế rồi kiểm thử, dẫn dắt bởi rủi ro.}
+\end{figure}
+
+%---------------------------------------------------------------
+\section{Kiến trúc hệ thống}
+%---------------------------------------------------------------
+\subsection{Pipeline và các dịch vụ}
+Một ca bệnh đi vào hệ thống dưới dạng ảnh X-quang kèm ghi chú triệu chứng; dịch vụ thị giác xóa thông tin định danh và tính xác suất bệnh lý; dịch vụ LLM chuyển kết quả thành bệnh án SOAP cùng nhãn ưu tiên; cuối cùng ca bệnh được lưu vào cơ sở dữ liệu.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l l X X@{}}
+\toprule
+\textbf{Module} & \textbf{Vai trò} & \textbf{Nhiệm vụ} & \textbf{Trọng tâm audit} \\
+\midrule
+01 & Giao diện & Nhận ảnh X-quang và ghi chú triệu chứng; gọi các dịch vụ phía sau qua Docker DNS & Tái lập trên Linux/Windows/macOS; cập nhật code trực tiếp bằng Bind Mount \\
+02 & API thị giác (FastAPI) & Xóa metadata DICOM/EXIF; tính xác suất bệnh lý bằng mô hình thị giác y khoa & Dung lượng image, Layer Caching, tốc độ nạp model qua Named Volume \\
+03 & API LLM (FastAPI) & Viết bệnh án SOAP (Subjective--Objective--Assessment--Plan) và nhãn mức độ ưu tiên & Tự phục hồi và giới hạn tài nguyên khi giả lập sập container \\
+04 & Cơ sở dữ liệu (ví dụ PostgreSQL 16) & Lưu lịch sử ca bệnh & Bền vững dữ liệu, cô lập mạng, chạy quyền non-root \\
+\bottomrule
+\end{tabularx}
+\caption{Bốn vi dịch vụ và bài audit tương ứng.}
+\end{table}
+
+\subsection{Cấu trúc mạng và lưu trữ}
+Hai mạng Docker phân tách mức độ phơi bày: mạng \texttt{frontend} mà giao diện người dùng truy cập được, và mạng \texttt{backend} chứa cơ sở dữ liệu cùng lưu lượng giữa các dịch vụ, không được công bố ra máy chủ (host). Ba Named Volume giữ các trạng thái cần tồn tại lâu hơn vòng đời container: trọng số mô hình thị giác, trọng số/cache của LLM và tệp dữ liệu của cơ sở dữ liệu. Việc mỗi dịch vụ gắn vào mạng nào cụ thể là một quyết định thiết kế sẽ được kiểm chứng bằng Audit 4.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+  svc/.style={draw, rounded corners, fill=white, minimum width=2.6cm, minimum height=1cm, align=center, font=\small},
+  vol/.style={draw, cylinder, shape border rotate=90, aspect=0.25, fill=yellow!20, minimum width=1.9cm, minimum height=0.9cm, align=center, font=\scriptsize},
+  arr/.style={-{Stealth[length=2mm]}, thick}
+]
+  \node[svc] (ui) {01 Giao diện};
+  \node[svc, right=1.4cm of ui] (vis) {02 API thị giác};
+  \node[svc, right=1.4cm of vis] (llm) {03 API LLM};
+  \node[svc, below=1.8cm of llm] (db) {04 CSDL};
+
+  \node[vol, below=1.0cm of vis] (v1) {trọng số\\thị giác};
+  \node[vol, right=0.6cm of v1] (v2) {cache\\LLM};
+  \node[vol, right=0.6cm of v2] (v3) {dữ liệu\\CSDL};
+
+  \draw[arr] (ui) -- (vis);
+  \draw[arr] (vis) -- (llm);
+  \draw[arr] (llm) -- (db);
+  \draw[dashed] (vis) -- (v1);
+  \draw[dashed] (llm.south west) -- (v2.north);
+  \draw[dashed] (db) -- (v3);
+
+  \begin{scope}[on background layer]
+    \node[draw, dashed, rounded corners, fill=blue!5, fit=(ui) (vis) (llm), inner sep=6mm,
+          label={[font=\scriptsize]above:mạng \texttt{frontend}}] {};
+    \node[draw, dashed, rounded corners, fill=red!5, fit=(vis) (llm) (db) (v1) (v3), inner sep=3mm,
+          label={[font=\scriptsize, xshift=2.6cm]below:mạng \texttt{backend} (nội bộ)}] {};
+  \end{scope}
+\end{tikzpicture}
+\caption{Sơ đồ khái niệm: hai mạng và ba Named Volume (đường nét đứt biểu thị việc mount volume). Cách gắn mạng cuối cùng sẽ được xác nhận qua Audit 4.}
+\end{figure}
+
+%---------------------------------------------------------------
+\section{Kỹ thuật triển khai}
+%---------------------------------------------------------------
+Mỗi kỹ thuật dưới đây được chọn để đối phó một rủi ro cụ thể và được kiểm chứng bằng một trong các bài audit.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{3.6cm} X X@{}}
+\toprule
+\textbf{Cơ chế Docker} & \textbf{Rủi ro được giải quyết} & \textbf{Cách áp dụng} \\
+\midrule
+\texttt{Dockerfile} và \texttt{requirements.txt} riêng cho từng dịch vụ & Xung đột thư viện giữa bộ xử lý ảnh và bộ LLM & Mỗi dịch vụ một môi trường cô lập \\
+\texttt{.dockerignore} & Build context phình to; vô tình đưa dữ liệu hoặc bí mật vào image & Loại trừ dataset, cache, \texttt{.git}, file môi trường cục bộ \\
+Docker DNS trên mạng do người dùng định nghĩa & IP viết cứng; phát hiện dịch vụ mong manh & Các dịch vụ gọi nhau bằng tên dịch vụ \\
+Bind Mount (giai đoạn phát triển) & Vòng lặp sửa code -- build lại chậm & Mount mã nguồn để cập nhật trực tiếp \\
+Multi-stage build & Image lớn, công cụ build bị đưa vào bản chạy thật & Build ở một stage, chỉ sao chép phần cần chạy sang stage cuối gọn nhẹ \\
+Layer Caching & Build lại chậm & Sắp xếp lệnh sao cho lớp phụ thuộc được cache trước mã ứng dụng \\
+Named Volume & Tải lại trọng số nhiều lần; mất dữ liệu khi xóa container & Lưu bền trọng số mô hình và tệp cơ sở dữ liệu \\
+Health check, \texttt{depends\_on}, chính sách restart & Tranh chấp thứ tự khởi động; container sập & Khởi động đúng thứ tự phụ thuộc và tự khởi động lại container lỗi \\
+Giới hạn tài nguyên (CPU/bộ nhớ) & Một dịch vụ chiếm hết tài nguyên của host hoặc dịch vụ khác & Đặt trần bộ nhớ/CPU; quan sát hành vi khi bị áp lực \\
+Cô lập mạng & Lộ dữ liệu bệnh nhân & Cơ sở dữ liệu chỉ truy cập được từ mạng backend nội bộ \\
+Người dùng non-root & Leo thang đặc quyền từ container bị xâm nhập & Chạy tiến trình bằng tài khoản không đặc quyền \\
+\texttt{docker-compose.yml} + \texttt{.env.example} & Cài đặt thủ công, dễ sai & Một lệnh khởi chạy cả bốn container; cấu hình qua biến môi trường \\
+\bottomrule
+\end{tabularx}
+\caption{Ánh xạ giữa cơ chế Docker và rủi ro vận hành.}
+\end{table}
+
+\textbf{Khởi chạy bằng một lệnh.} Toàn bộ hệ thống được khởi động bằng:
+\begin{lstlisting}[language=bash]
+cp .env.example .env
+docker compose up --build
+\end{lstlisting}
+
+\textbf{Ẩn danh hóa dữ liệu.} Module 02 xóa metadata DICOM/EXIF trước khi ảnh đến bất kỳ dịch vụ phía sau nào, nhờ đó tầng LLM và tầng cơ sở dữ liệu theo thiết kế chỉ xử lý đầu vào đã được ẩn danh.
+
+%---------------------------------------------------------------
+\section{Các bài kiểm thử DevSecOps Readiness Audit}
+%---------------------------------------------------------------
+Mỗi bài audit so sánh cấu hình cơ sở (naive) với cấu hình dùng Docker và được tự động hóa bằng một script trong repo.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}l p{2.6cm} X X@{}}
+\toprule
+\textbf{\#} & \textbf{Bài audit} & \textbf{Quy trình} & \textbf{Chỉ số đề xuất} \\
+\midrule
+1 & Tái lập \& Môi trường Dev & Build và chạy hệ thống trên Linux, Windows, macOS; sửa code khi có và không có Bind Mount & Build thành công và kết quả giống nhau giữa các hệ điều hành; độ trễ từ lúc sửa code đến lúc có hiệu lực \\
+2 & Tối ưu Image \& Cache & So sánh build một giai đoạn với multi-stage; build lại sau khi đổi code và đổi thư viện; khởi động có và không có Named Volume cho trọng số & Dung lượng image (MB); thời gian build lại; thời gian nạp model lần đầu so với các lần sau \\
+3 & Chịu lỗi \& Quản lý tài nguyên & Dừng đột ngột container và gây áp lực bộ nhớ; áp dụng giới hạn CPU/bộ nhớ & Thời gian phục hồi; tỷ lệ tự khởi động lại thành công; ảnh hưởng đến các dịch vụ khác; hành vi khi chạm giới hạn \\
+4 & Bảo mật \& Bền vững dữ liệu & Xóa và tạo lại container; thử truy cập cơ sở dữ liệu từ ngoài mạng backend; kiểm tra tài khoản chạy tiến trình & Dữ liệu còn nguyên sau khi tạo lại; truy cập từ ngoài bị chặn; xác nhận chạy non-root \\
+\bottomrule
+\end{tabularx}
+\caption{Tóm tắt thiết kế các bài audit.}
+\end{table}
+
+%---------------------------------------------------------------
+\section{Dữ liệu và kết quả thực nghiệm}
+%---------------------------------------------------------------
+\textbf{Đầu vào.} Bộ dữ liệu demo nhỏ gồm 15--20 ca X-quang ngực, mỗi ca đi kèm ghi chú triệu chứng lâm sàng, được chọn sao cho đa dạng về tổn thương và mức độ khẩn cấp.
+
+\textbf{Đầu ra lâm sàng.}
+\begin{itemize}
+  \item Xác suất dự đoán các bệnh lý từ ảnh X-quang.
+  \item Bản tóm tắt ca bệnh chuẩn SOAP và nhãn mức độ khẩn cấp.
+  \item Độ trễ suy luận đầu--cuối và theo từng dịch vụ.
+\end{itemize}
+
+\textbf{Đầu ra vận hành.} Log thô từ bốn bài audit (log build, số đo thời gian, sự kiện container, vết khởi động lại và kiểm tra tính bền vững), được lưu giữ để có thể tái lập kết quả.
+
+%---------------------------------------------------------------
+\section{Sản phẩm bàn giao}
+%---------------------------------------------------------------
+\begin{enumerate}
+  \item \textbf{Ứng dụng:} hệ thống MedTriage AI hoàn chỉnh, khởi chạy bằng một lệnh.
+  \item \textbf{Báo cáo kỹ thuật (PDF, LaTeX):} kiến trúc, quy trình đóng gói bốn vi dịch vụ và phân tích kết quả bốn bài audit.
+  \item \textbf{Repo GitHub:} mã nguồn của tất cả dịch vụ, script tự động chạy các bài audit và hướng dẫn tái lập kết quả.
+\end{enumerate}
+
+\subsection*{Cấu trúc báo cáo dự kiến}
+\begin{enumerate}
+  \item \textbf{Đặt vấn đề:} thách thức khi triển khai AI y tế hiện đại vào bệnh viện (xung đột thư viện, trọng số nặng, bảo mật dữ liệu bệnh nhân, tính ổn định vận hành).
+  \item \textbf{Phương pháp và thiết kế:} kiến trúc bốn container, lý do thiết kế và các cơ chế.
+  \item \textbf{Thực nghiệm và kết quả:} bốn bài audit cùng bằng chứng thô.
+  \item \textbf{Thảo luận:} đánh giá cách từng cơ chế của Docker giải quyết rủi ro vận hành hệ thống AI trong y tế, kèm các hạn chế.
+\end{enumerate}
+
+%---------------------------------------------------------------
+\section{Hạn chế và lưu ý đạo đức}
+%---------------------------------------------------------------
+\begin{itemize}
+  \item Bộ dữ liệu demo nhỏ, nhằm kiểm tra \emph{hệ thống} chứ không nhằm xác thực độ chính xác lâm sàng.
+  \item Kết quả của mô hình chỉ hỗ trợ ra quyết định và cần bác sĩ xem xét; nguyên mẫu không phải thiết bị y tế được chứng nhận.
+  \item Việc xóa metadata làm giảm nhưng không tự nó đảm bảo ẩn danh hoàn toàn (ví dụ chữ in sẵn trên ảnh); điểm này sẽ được nêu trong phần phân tích.
+  \item Cô lập bằng Docker không phải là giải pháp bảo mật trọn vẹn; các bài audit chỉ đánh giá một số biện pháp kiểm soát được chọn.
+\end{itemize}
+
+\end{document}

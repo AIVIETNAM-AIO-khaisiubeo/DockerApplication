@@ -1,0 +1,3 @@
+case_id,image_file,symptoms,expected_priority,source_note
+C01,C01.png,"sốt 3 ngày, ho có đờm, khó thở khi gắng sức",URGENT,"TODO(P2: ảnh, P3: ghi chú) - ghi rõ nguồn + giấy phép ảnh"
+C02,C02.png,"khám sức khỏe định kỳ, không triệu chứng",ROUTINE,"TODO"
