@@ -34,11 +34,3 @@
 - **04/11:** viết mục Audit 4 + **chương Thảo luận tổng hợp** (rủi ro <-> cơ chế Docker) + README cuối.
 - **05/11:** kiểm thử "clone mới -> 1 lệnh" trên máy sạch.
 
-## Rủi ro và phương án B
-| Rủi ro | Phương án |
-|---|---|
-| Model thị giác/LLM quá nặng, tải lâu | Giữ `mock` cho phần chưa kịp, nói rõ trong báo cáo; chọn model nhỏ hơn |
-| Bind Mount chậm/không reload trên Windows/macOS | Đây chính là phát hiện của Audit 1 - ghi lại số đo và nêu giải pháp (`fileWatcherType=poll`) |
-| Máy yếu không chạy nổi LLM local | P3 dùng API ngoài; vẫn làm Audit 3 trên container API wrapper |
-| Trễ tiến độ | Cắt theo thứ tự: bỏ DICOM -> bỏ trang Lịch sử đẹp -> giảm số ca xuống 15; **không** cắt 4 audit |
-| Lỗi nền tảng (`docker compose up` hỏng) | P4 xử lý ngay ngày 28/10 - đây là việc ưu tiên số 1 |
