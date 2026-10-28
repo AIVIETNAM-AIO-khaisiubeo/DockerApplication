@@ -5,6 +5,8 @@ Mọi thứ hiện chạy ở chế độ **mock** để kiểm thử tích hợ
 
 **Thành viên mới? Đọc [Hướng dẫn làm việc cho nhóm](docs/TEAM_GUIDE.md)** trước khi bắt đầu. Tài liệu bao gồm setup, vị trí code theo module, lệnh chạy/test, Git branch/PR, audit và xử lý lỗi.
 
+**Muốn làm độc lập và chỉ ghép ở cuối?** Xem [Quy trình phát triển module độc lập](docs/MODULE_INDEPENDENCE.md). Mỗi thành viên có Compose riêng để chạy module của mình mà không phải khởi động toàn bộ hệ thống.
+
 - Kế hoạch & phân công: [PLAN.md](PLAN.md)
 - Hợp đồng API giữa các module: [docs/CONTRACT.md](docs/CONTRACT.md)
 
@@ -37,6 +39,19 @@ docker compose exec -T ui python smoke_test.py
 | P2 | Vision API | `services/02-vision/` | `audits/audit2_image_cache.sh` |
 | P3 | LLM API | `services/03-llm/` | `audits/audit3_fault_tolerance.sh` |
 | P4 | Database + hạ tầng | `services/04-db/`, `docker-compose.yml` | `audits/audit4_security_persistence.sh` |
+
+## Chạy riêng từng module
+
+Chạy từ thư mục gốc repository; chi tiết test và tiêu chí hoàn thành nằm trong [docs/MODULE_INDEPENDENCE.md](docs/MODULE_INDEPENDENCE.md).
+
+| Thành viên | Lệnh |
+|---|---|
+| P1 — UI demo độc lập | `docker compose -f docker-compose.p1.yml up --build` |
+| P2 — Vision API | `docker compose -f docker-compose.p2.yml up --build` |
+| P3 — LLM API | `docker compose -f docker-compose.p3.yml up --build` |
+| P4 — PostgreSQL/schema | `docker compose -f docker-compose.p4.yml up --build -d` |
+
+Các stack độc lập dùng port/volume riêng. UI của P1 dùng backend giả lập, không gọi model/database thật. Chỉ chạy stack tích hợp sau khi các module sẵn sàng: `docker compose up --build -d`.
 
 ## Quy tắc làm việc
 
