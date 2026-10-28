@@ -1,0 +1,25 @@
+# P2-only development stack. No UI, LLM, or database is started.
+# Local development defaults to mock mode.
+name: medtriage-p2-dev
+services:
+  vision:
+    build: ./services/02-vision
+    ports:
+      - "127.0.0.1:${P2_VISION_PORT:-8001}:8000"
+    environment:
+      MODEL_MODE: ${P2_MODEL_MODE:-mock}
+      MODEL_DIR: /models
+    volumes:
+      - ./services/02-vision/app:/app/app
+      - p2_vision_models:/models
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  p2_vision_models:
