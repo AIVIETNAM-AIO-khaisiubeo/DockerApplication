@@ -1,113 +1,160 @@
-# Làm việc độc lập theo module
+# Làm riêng từng module, ghép lại ở cuối
 
-Mỗi thành viên có thể phát triển và kiểm thử module của mình mà **không phải khởi động hay phụ thuộc code đang thay đổi của ba thành viên khác**. Khi từng module đạt tiêu chí hoàn thành, leader mới ghép chúng bằng Compose tích hợp và chạy kiểm thử end-to-end.
+## Ý tưởng chính
 
-Nguyên tắc:
-1. **Một người sở hữu một module** và làm trên branch riêng.
-2. **Hợp đồng API trong [CONTRACT.md](CONTRACT.md) là điểm giao tiếp chung**; có thể dùng mock theo đúng contract trong lúc phát triển.
-3. Dùng Compose riêng cho từng người. Các stack dev có port và volume riêng, không dùng chung database/model cache với stack tích hợp.
-4. Chỉ tích hợp sau khi module đã có test, README/ghi chú cần thiết và Pull Request được review.
+Trong nhóm có 4 người, không nên bắt mọi người chạy cả ứng dụng mỗi lần muốn sửa code. Thay vào đó:
 
-## 1. Lệnh khởi động độc lập
+1. Mỗi người chạy và kiểm tra phần mình bằng một file Compose riêng.
+2. Mỗi người lưu thay đổi trên branch riêng và gửi Pull Request để leader review.
+3. Leader ghép code vào branch `integration`.
+4. Chỉ khi các phần đã ghép xong mới chạy toàn bộ ứng dụng và kiểm tra luồng từ đầu đến cuối.
+5. Khi kiểm tra tích hợp đạt yêu cầu, leader gửi Pull Request từ `integration` vào `main`.
 
-Chạy từ thư mục gốc repository. Các file dưới đây là Compose độc lập; chúng **không tự khởi động** các service trong stack tích hợp.
+Bạn có thể hình dung đây là làm từng bộ phận riêng rồi mới lắp chúng thành một hệ thống.
 
-### P1 — UI, không cần Vision/LLM/DB thật
+## 1. Trước tiên: hiểu điểm giao tiếp chung
 
-~~~~bash
+Các module không cần dùng chung code bên trong, nhưng phải đồng ý cách gửi và nhận dữ liệu. Quy tắc này nằm trong [CONTRACT.md](CONTRACT.md).
+
+Ví dụ:
+- Vision nhận một file ảnh tại đường dẫn API `/predict`, trả về một bộ xác suất theo định dạng JSON.
+- LLM nhận triệu chứng và xác suất đó tại `/soap`, trả về ghi chú SOAP và mức ưu tiên.
+- UI hiển thị các kết quả này.
+- Database lưu lại các trường mà UI gửi vào.
+
+Định dạng request/response là “lời hứa” giữa các module. Bạn có thể thay code bên trong, nhưng đừng tự ý đổi tên endpoint hoặc field JSON nếu chưa báo nhóm.
+
+## 2. Chọn đúng lệnh của bạn
+
+Chạy lệnh từ thư mục gốc `DockerApplication`. Cần có Docker đang hoạt động. Khi chạy lần đầu, Docker có thể mất thêm thời gian tải thư viện và tạo image.
+
+### P1 — Chỉ làm giao diện
+
+```bash
 docker compose -f docker-compose.p1.yml up --build
-~~~~
+```
 
-Mở http://localhost:8501. UI chạy với chế độ giả lập backend: các xác suất, SOAP, mức ưu tiên và lịch sử chỉ là dữ liệu synthetic trong phiên Streamlit. Không gọi Vision/LLM thật hoặc PostgreSQL. Mọi thay đổi giao diện có thể xem trực tiếp nhờ bind mount/reload.
+Mở http://localhost:8501. Chế độ này mô phỏng kết quả Vision/LLM ngay trong UI, nên P1 có thể thiết kế giao diện và kiểm tra thao tác mà không cần chờ P2, P3 hoặc P4.
 
-Dừng stack bằng Ctrl+C, sau đó nếu cần dọn container:
+**Điều mode này không làm:** không chạy model thật, không gọi API thật và không lưu dữ liệu vào PostgreSQL. Kết quả trên UI là dữ liệu giả chỉ dùng cho kiểm thử giao diện.
 
-~~~~bash
-docker compose -f docker-compose.p1.yml down
-~~~~
+### P2 — Chỉ làm Vision API
 
-### P2 — Vision API độc lập
-
-~~~~bash
+```bash
 docker compose -f docker-compose.p2.yml up --build
-~~~~
+```
 
-Mở http://localhost:8001/docs để thử API bằng Swagger hoặc kiểm tra http://localhost:8001/health. Mặc định mode là mock để không cần tải model. P2 có thể phát triển tiền xử lý và kiểm thử endpoint mà không cần UI, LLM hay database.
+Mở http://localhost:8001/docs.
+1. Chọn `GET /health`, bấm **Try it out → Execute**.
+2. Kiểm tra phản hồi có `status` và `mode`.
+3. Chọn `POST /predict`, tải ảnh PNG/JPG và thử gửi.
+4. Kiểm tra phản hồi có `probabilities`, `metadata_removed`, `mode`, `latency_ms`.
 
-### P3 — LLM API độc lập
+Các số ở chế độ mock chỉ giúp xác nhận API trả đúng định dạng. Chúng không phải kết quả của model thật.
 
-~~~~bash
+### P3 — Chỉ làm LLM API
+
+```bash
 docker compose -f docker-compose.p3.yml up --build
-~~~~
+```
 
-Mở http://localhost:8002/docs để thử POST /soap và http://localhost:8002/health để kiểm tra trạng thái. Mặc định LLM_MODE là mock; API debug bị tắt. Không cần UI, Vision hay database để phát triển logic SOAP/priority.
+Mở http://localhost:8002/docs. Thử `GET /health`, sau đó `POST /soap`. Gửi JSON có hai trường `symptoms` và `findings`. Xác nhận phản hồi có đủ phần `S`, `O`, `A`, `P`, cùng `priority`, `mode` và `latency_ms`.
 
-### P4 — PostgreSQL/schema độc lập
+### P4 — Chỉ làm database
 
-~~~~bash
+```bash
 docker compose -f docker-compose.p4.yml up --build -d
 docker compose -f docker-compose.p4.yml ps
 docker compose -f docker-compose.p4.yml exec db psql -U medtriage -d medtriage -c "\dt"
-~~~~
+```
 
-Database dev được publish **chỉ trên localhost port 5433** và dùng volume riêng tên cho stack P4. Đây là cấu hình phát triển cục bộ, không phải cấu hình triển khai. Khi đổi init.sql, lưu ý PostgreSQL chỉ tự chạy script trong thư mục init khi khởi tạo data directory trống lần đầu.
+Lệnh cuối liệt kê các bảng. Mong đợi nhìn thấy `cases`. P4 dùng cổng máy local 5433 và vùng lưu dữ liệu riêng để không làm lẫn dữ liệu thử nghiệm với database tích hợp.
 
-Dừng stack:
+Để dừng P4:
 
-~~~~bash
+```bash
 docker compose -f docker-compose.p4.yml down
-~~~~
+```
 
-Lệnh trên giữ volume. Chỉ khi chắc chắn không cần dữ liệu thử nghiệm mới dùng lệnh có -v; lệnh đó xóa volume của stack P4.
+Lệnh `down` giữ dữ liệu trong Named Volume. Không dùng `down -v` nếu còn cần dữ liệu thử nghiệm.
 
+## 3. Nếu port trên máy bạn đã bị dùng
 
-## 2. Điều mỗi thành viên phải kiểm tra
+Các cổng mặc định:
+- P1: http://localhost:8501
+- P2: http://localhost:8001/docs
+- P3: http://localhost:8002/docs
+- P4: PostgreSQL ở localhost:5433
 
-### P1
-- UI mở được và các thành phần hiển thị đúng.
-- Upload ảnh tổng hợp, nhập triệu chứng, nhấn Phân tích.
-- Xác nhận trang lịch sử hiển thị các ca demo trong phiên hiện tại.
-- Nêu rõ chế độ isolated UI chỉ kiểm thử bố cục/luồng giao diện, không chứng minh API thật hoạt động.
+Nếu cổng trùng với chương trình khác, hãy đổi biến port cho đúng Compose file:
+- P1 dùng `P1_UI_PORT`
+- P2 dùng `P2_VISION_PORT`
+- P3 dùng `P3_LLM_PORT`
+- P4 dùng `P4_DB_PORT`
 
-### P2
-- GET /health trả status thành công.
-- POST /predict nhận PNG/JPG và trả các trường định nghĩa trong contract.
-- Có test cho file không hợp lệ, trường hợp lỗi và định dạng trả về.
-- Nếu chọn model thật, ghi rõ model/version, license, kích thước weights, cách tải và thời gian load; không đưa weights lớn vào Git.
+Ví dụ PowerShell để chạy P2 trên cổng 8011:
 
-### P3
-- GET /health trả status thành công.
-- POST /soap trả soap có đủ S/O/A/P, priority thuộc EMERGENT/URGENT/ROUTINE, mode và latency_ms.
-- Test input thiếu/sai, timeout và lỗi của nhà cung cấp model/API.
-- Không commit API keys; giữ endpoint debug tắt ngoài audit.
+```powershell
+$env:P2_VISION_PORT=8011
+docker compose -f docker-compose.p2.yml up --build
+```
 
-### P4
-- Schema trong init.sql phù hợp với các truy vấn của services/01-ui/db.py.
-- Kiểm thử tạo bảng/index và các constraint trong database dev riêng.
-- Ghi lại cách tạo mới schema, migration và các quyền cần thiết.
-- Không chỉnh schema theo cách làm mất tương thích mà chưa báo nhóm.
+## 4. Khi nào nên chạy toàn bộ ứng dụng?
 
-## 3. Quy trình chỉ tích hợp ở cuối
+Chỉ chạy khi các module đã có thể chạy riêng và các thành viên đã gửi Pull Request:
 
-### Giai đoạn A — Phát triển độc lập
-Mỗi người chỉ chạy Compose riêng của mình, viết code/test trong thư mục được giao và commit trên branch riêng. Không cần khởi chạy toàn bộ ứng dụng mỗi lần sửa code.
+```bash
+docker compose up --build -d
+docker compose ps
+docker compose exec -T ui python smoke_test.py
+```
 
-### Giai đoạn B — Báo sẵn sàng tích hợp
-Mỗi thành viên gửi Pull Request với base branch là `integration` và ghi:
-- Phạm vi và file đã thay đổi.
-- Lệnh chạy độc lập và kết quả test thực tế.
-- Những biến môi trường, weights, API keys hoặc điều kiện ngoài cần thiết (không gửi giá trị secret).
-- Những thay đổi API/schema và TODO còn lại.
+Mở http://localhost:8501 để kiểm tra. Nếu thành công, luồng thử nghiệm sẽ đi qua UI → Vision API → LLM API → PostgreSQL. Nếu thất bại, đừng sửa tất cả file cùng lúc; đọc log để xác định service gặp lỗi trước.
 
-### Giai đoạn C — Integration owner ghép các module
-Sau khi review các module:
-1. Merge các PR thành viên vào nhánh `integration` (đã có trong repository), không ghép thủ công bằng cách copy file.
-2. Chạy stack tích hợp: docker compose up --build -d.
-3. Chạy docker compose ps, kiểm tra health từng service và smoke test: docker compose exec -T ui python smoke_test.py.
-4. Thử luồng UI → Vision → LLM → DB; kiểm tra log, lỗi timeout và lịch sử lưu/đọc.
-5. Chạy các audit phù hợp trên stack thử nghiệm. Cảnh giác với audit4 vì có thể gọi docker compose down -v và xóa volume.
-6. Khi E2E và audit đạt yêu cầu, tạo PR từ nhánh tích hợp vào main.
+Xem log từng service:
 
-Nhánh `main` giữ phiên bản ổn định. Thành viên không mở PR module trực tiếp vào `main`; chỉ mở PR từ `integration` sang `main` sau khi stack đầy đủ vượt qua kiểm thử E2E và các audit bắt buộc.
+```bash
+docker compose logs --tail=100 ui
+docker compose logs --tail=100 vision
+docker compose logs --tail=100 llm
+docker compose logs --tail=100 db
+```
 
+## 5. Quy trình GitHub cho nhóm
 
+### Thành viên
+
+Tạo branch từ `integration` (ví dụ P2):
+
+```bash
+git fetch origin
+git switch -c p2-vision origin/integration
+```
+
+Nếu branch đó đã tồn tại, chuyển sang branch hiện có bằng `git switch p2-vision`. Sửa code trong thư mục P2, chạy test độc lập và ghi lại kết quả. Sau đó commit/push và tạo Pull Request từ `p2-vision` vào `integration`.
+
+Trong PR nên ghi:
+- Bạn đã thay đổi gì.
+- Bạn chạy lệnh nào để test và kết quả là gì.
+- Phần nào chưa hoàn thành hoặc cần nhóm quyết định.
+
+### Leader / người ghép hệ thống
+
+1. Review các PR; kiểm tra mỗi module có lệnh chạy độc lập và kết quả test.
+2. Merge từng PR đã duyệt vào `integration`.
+3. Chạy toàn bộ ứng dụng bằng Compose gốc và thực hiện smoke test.
+4. Điều tra lỗi tích hợp, yêu cầu người sở hữu module sửa đúng phần đó.
+5. Chạy các audit trên stack thử nghiệm và đọc log kết quả.
+6. Khi các kiểm tra cần thiết đã đạt, mở PR từ `integration` vào `main`.
+
+Nhánh `main` là phiên bản ổn định đã qua kiểm tra. Đừng merge thẳng code chưa kiểm thử vào `main`.
+
+## 6. Những điều nên nhớ
+
+- **Không cần chạy toàn bộ project khi đang sửa một module.**
+- Dùng mock để kiểm tra giao diện/API khi model thật chưa sẵn sàng.
+- Mock không chứng minh model thật hoạt động hoặc có độ chính xác tốt.
+- Không tự ý đổi API contract; các module khác có thể đang dựa vào nó.
+- Không commit file bí mật, dữ liệu bệnh nhân hoặc model weights lớn.
+- Đọc [DOCKER_BASICS.md](DOCKER_BASICS.md) nếu chưa rõ image, container, port, volume, bind mount hoặc log.
+- Audit 4 có lệnh có thể xóa Named Volume. Chỉ chạy trên stack thử nghiệm và dữ liệu có thể bỏ.
