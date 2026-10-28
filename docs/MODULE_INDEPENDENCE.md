@@ -60,37 +60,8 @@ docker compose -f docker-compose.p4.yml down
 
 Lệnh trên giữ volume. Chỉ khi chắc chắn không cần dữ liệu thử nghiệm mới dùng lệnh có -v; lệnh đó xóa volume của stack P4.
 
-## 2. Port và dữ liệu được tách riêng
 
-| Stack dev | Chức năng | Host port mặc định | Phụ thuộc service của người khác? |
-|---|---|---:|---|
-| P1 | Streamlit với backend giả lập | 8501 | Không |
-| P2 | Vision API mock | 8001 | Không |
-| P3 | LLM API mock | 8002 | Không |
-| P4 | PostgreSQL local | 5433 | Không |
-
-Nếu một port đã được dùng, đổi biến tương ứng:
-- P1: P1_UI_PORT
-- P2: P2_VISION_PORT
-- P3: P3_LLM_PORT
-- P4: P4_DB_PORT
-
-Ví dụ PowerShell có thể chạy lệnh sau trước khi khởi động P2:
-
-~~~~powershell
-$env:P2_VISION_PORT=8011
-docker compose -f docker-compose.p2.yml up --build
-~~~~
-
-Trên Bash:
-
-~~~~bash
-P2_VISION_PORT=8011 docker compose -f docker-compose.p2.yml up --build
-~~~~
-
-Đừng để hai stack cùng chiếm một host port. Các stack P2/P3 dùng Named Volume riêng để weights/cache sau này không bị nhầm với volume của stack tích hợp. P4 dùng một volume dev khác với database tích hợp.
-
-## 3. Điều mỗi thành viên phải kiểm tra
+## 2. Điều mỗi thành viên phải kiểm tra
 
 ### P1
 - UI mở được và các thành phần hiển thị đúng.
@@ -116,7 +87,7 @@ P2_VISION_PORT=8011 docker compose -f docker-compose.p2.yml up --build
 - Ghi lại cách tạo mới schema, migration và các quyền cần thiết.
 - Không chỉnh schema theo cách làm mất tương thích mà chưa báo nhóm.
 
-## 4. Quy trình chỉ tích hợp ở cuối
+## 3. Quy trình chỉ tích hợp ở cuối
 
 ### Giai đoạn A — Phát triển độc lập
 Mỗi người chỉ chạy Compose riêng của mình, viết code/test trong thư mục được giao và commit trên branch riêng. Không cần khởi chạy toàn bộ ứng dụng mỗi lần sửa code.
@@ -139,12 +110,4 @@ Sau khi review các module:
 
 Nhánh `main` giữ phiên bản ổn định. Thành viên không mở PR module trực tiếp vào `main`; chỉ mở PR từ `integration` sang `main` sau khi stack đầy đủ vượt qua kiểm thử E2E và các audit bắt buộc.
 
-## 5. Những điều không nên làm
-
-- Không gọi API của thành viên khác trong lúc phát triển nếu chưa cần: dùng mock đúng contract.
-- Không thay tên endpoint/JSON field một cách âm thầm; cập nhật CONTRACT.md và báo nhóm.
-- Không dùng chung volume database/model giữa test độc lập và tích hợp.
-- Không coi mock response là kết quả y khoa hoặc kết quả từ model thật.
-- Không dùng docker compose down -v để dọn dẹp nếu còn dữ liệu cần giữ.
-- Không tuyên bố audit PASS nếu chưa chạy và lưu log kết quả.
 
