@@ -1,24 +1,4 @@
-# Kế hoạch 28/10 -> 05/11/2026 (9 ngày) - MedTriage AI
-
-**Giả định (sửa nếu sai):** 05/11 là hạn nộp/demo bản đầu: (1) ứng dụng chạy 1 lệnh, (2) log đủ 4 audit, (3) bản nháp báo cáo LaTeX.
-Mỗi người ~2-3 giờ/ngày. **Code freeze: tối 04/11.** 05/11 chỉ kiểm tra và sửa lỗi nhỏ.
-
-## Nguyên tắc để nhóm không bị lạc hướng
-1. **Mock trước, thật sau**: pipeline đã chạy được từ ngày 1; thay dần từng module sang bản thật mà không làm hỏng người khác.
-2. **Hợp đồng API đóng băng** (`docs/CONTRACT.md`): làm việc song song không cần chờ nhau.
-3. **Audit là điểm chấm**: Dockerfile phải có bản `Dockerfile.naive` (baseline) và bản tối ưu để đo so sánh.
-4. **Họp nhanh 15 phút mỗi tối**: hôm nay xong gì / mai làm gì / đang kẹt gì. Kẹt quá 1 giờ thì hỏi ngay.
-
-## Các mốc
-| Ngày | Mốc | Tiêu chí đạt |
-|---|---|---|
-| T4 28/10 | **M0 Kick-off** | Cả 4 người chạy được scaffold (`docker compose up`, mở được UI, smoke test OK); nhận việc |
-| T6 30/10 | **M1 Module v1** | Mỗi module có bản "thật" đầu tiên (hoặc mock cải tiến) chạy trong container riêng; có `Dockerfile.naive` |
-| T2 02/11 | **M2 Tích hợp E2E** | Chạy end-to-end với 15-20 ca; ghi nhận xác suất, SOAP, nhãn ưu tiên, độ trễ |
-| T3 03/11 | **M3 Audit** | Chạy `run_all.sh`, có log cả 4 audit |
-| T4 04/11 | **M4 Báo cáo + freeze** | Bản nháp LaTeX đủ các mục; README hoàn chỉnh; đóng băng code tối nay |
-| T5 05/11 | **M5 Giao nộp** | Clone repo sạch -> chạy 1 lệnh OK; tập dượt demo; nộp |
-
+# Kế hoạch 28/10 -> 05/11/2026 - MedTriage AI
 ## Phân công theo người
 
 ### P1 - Module 01 (Giao diện) + Audit 1 (Tái lập & Dev) + ghép báo cáo
