@@ -202,19 +202,7 @@ Hoặc `bash audits/run_all.sh`.
 
 Đọc log trong `audits/results/<RUN_ID>/` và xác nhận từng tiêu chí; không coi audit là PASS chỉ vì script đã chạy hết. Audit 1 tập trung reproducibility; Audit 2 image/build cache; Audit 3 fault tolerance; Audit 4 security và persistence. **Kiểm tra nội dung audit4 trước khi chạy:** nếu script gọi `docker compose down -v`, nó sẽ xóa volume của stack. Chỉ dùng dữ liệu tổng hợp và môi trường thử nghiệm.
 
-## 8. Lỗi thường gặp
-
-- **Docker không kết nối được:** mở Docker Desktop/Engine rồi kiểm tra `docker version`.
-- **Port 8501 đang bận:** đổi `UI_PORT` trong `.env`, tạo lại container UI và mở port mới.
-- **UI mở nhưng phân tích lỗi:** chạy smoke test, xem log UI/Vision/LLM và gọi health từng service.
-- **Vision/LLM không mở trên localhost:** đó là service nội bộ; gọi bằng DNS `vision`/`llm` từ mạng Compose.
-- **Sửa code nhưng không thấy thay đổi:** xác nhận đang dùng override cho development; build lại nếu thay dependencies/Dockerfile.
-- **Thiếu bảng `cases`:** kiểm tra log DB, `.env` và `init.sql`; init script có thể không chạy lại trên volume đã tồn tại.
-- **Smoke test lỗi:** tìm lỗi đầu tiên trong log và kiểm tra từng service; không đổi sang mode real để né lỗi.
-
-Nếu bị kẹt, gửi nhóm: module đang làm, lệnh đã chạy, log/lỗi nguyên văn, kết quả mong đợi và những cách đã thử.
-
-## 9. Definition of Done
+## 5. Definition of Done
 
 Một module sẵn sàng tích hợp khi chức năng đã làm hoặc TODO được ghi rõ; API vẫn khớp `docs/CONTRACT.md`; test tái hiện được; pipeline mock vẫn chạy; không commit secret/dữ liệu nhạy cảm; và kết quả audit dùng số đo thật.
 
