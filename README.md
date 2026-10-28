@@ -10,7 +10,7 @@ Mọi thứ hiện chạy ở chế độ **mock** để kiểm thử tích hợ
 - Kế hoạch & phân công: [PLAN.md](PLAN.md)
 - Hợp đồng API giữa các module: [docs/CONTRACT.md](docs/CONTRACT.md)
 
-## Chạy thử
+## Chạy toàn bộ pipeline (chỉ ở giai đoạn tích hợp)
 
 Cần Docker Desktop hoặc Docker Engine cùng Docker Compose v2.
 
@@ -55,7 +55,7 @@ Các stack độc lập dùng port/volume riêng. UI của P1 dùng backend gi�
 
 ## Quy tắc làm việc
 
-- Mỗi thành viên làm trên nhánh riêng và gửi Pull Request vào `main`.
+- Mỗi thành viên làm trên nhánh riêng và gửi Pull Request vào nhánh `integration`. Chỉ sau khi kiểm thử E2E thành công mới tạo PR từ `integration` vào `main`.
 - Không commit `.env`, API keys, dữ liệu bệnh nhân hoặc model weights lớn.
 - Trao đổi với P4 trước khi sửa `docker-compose.yml`.
 - Nếu đổi API, cập nhật `docs/CONTRACT.md` và thông báo các thành viên liên quan.
