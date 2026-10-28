@@ -55,19 +55,8 @@ cp .env.example .env
 
 Không commit file `.env`. Giữ `MODEL_MODE=mock` và `LLM_MODE=mock` cho đến khi người phụ trách Vision/LLM triển khai và kiểm thử mode thật. Chỉ bật `ENABLE_DEBUG=1` trên stack audit thử nghiệm, không bật khi demo thông thường.
 
-### Phát triển một module riêng (khuyến nghị)
-Không cần chạy toàn bộ pipeline khi đang code. Chọn đúng file Compose của module mình theo [hướng dẫn độc lập](MODULE_INDEPENDENCE.md):
 
-~~~~bash
-docker compose -f docker-compose.p1.yml up --build      # P1 — UI với backend giả lập
-docker compose -f docker-compose.p2.yml up --build      # P2 — Vision API
-docker compose -f docker-compose.p3.yml up --build      # P3 — LLM API
-docker compose -f docker-compose.p4.yml up --build -d   # P4 — PostgreSQL dev riêng
-~~~~
-
-P1/P2/P3 mở UI/docs theo hướng dẫn tương ứng. P4 có database dev riêng trên localhost:5433. Các stack này không ghép với nhau và sử dụng mock/dev data.
-
-### Chỉ khi bắt đầu giai đoạn tích hợp
+### Giai đoạn tích hợp
 Integration owner khởi chạy toàn hệ thống bằng:
 
 ~~~~bash
