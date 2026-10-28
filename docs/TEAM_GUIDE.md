@@ -1,4 +1,4 @@
-# Hướng dẫn bắt đầu cho thành viên — MedTriage AI
+# Hướng dẫn sử dụng cho thành viên — MedTriage AI
 
 Tài liệu này dành cho thành viên mới với Git, Docker và ứng dụng nhiều service. Mục tiêu là để mỗi người biết mình phụ trách phần nào, viết code ở đâu, chạy thử ra sao và gửi Pull Request như thế nào.
 
