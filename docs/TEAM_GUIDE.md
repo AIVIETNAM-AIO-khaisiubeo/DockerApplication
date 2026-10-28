@@ -2,6 +2,17 @@
 
 Tài liệu này dành cho thành viên mới với Git, Docker và ứng dụng nhiều service. Mục tiêu là để mỗi người biết mình phụ trách phần nào, viết code ở đâu, chạy thử ra sao và gửi Pull Request như thế nào.
 
+> **Quan trọng — không cần tích hợp ngay từ đầu:** P1/P2/P3/P4 có Compose phát triển riêng. Mỗi thành viên có thể chạy stack độc lập, dùng mock hoặc database dev riêng, rồi chỉ ghép toàn bộ ứng dụng sau khi các module hoàn tất. Hướng dẫn chi tiết: [docs/MODULE_INDEPENDENCE.md](MODULE_INDEPENDENCE.md).
+
+~~~~bash
+docker compose -f docker-compose.p1.yml up --build  # P1: UI mock độc lập
+docker compose -f docker-compose.p2.yml up --build  # P2: Vision API độc lập
+docker compose -f docker-compose.p3.yml up --build  # P3: LLM API độc lập
+docker compose -f docker-compose.p4.yml up --build -d  # P4: PostgreSQL dev riêng
+~~~~
+
+Chỉ chạy `docker compose up --build -d` ở giai đoạn tích hợp khi nhóm cần kiểm tra luồng end-to-end.
+
 ## 1. Kiến trúc tổng quan
 
 Dự án có bốn service:
