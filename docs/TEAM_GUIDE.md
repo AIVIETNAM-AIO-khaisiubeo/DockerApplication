@@ -55,16 +55,28 @@ cp .env.example .env
 
 Không commit file `.env`. Giữ `MODEL_MODE=mock` và `LLM_MODE=mock` cho đến khi người phụ trách Vision/LLM triển khai và kiểm thử mode thật. Chỉ bật `ENABLE_DEBUG=1` trên stack audit thử nghiệm, không bật khi demo thông thường.
 
-Khởi động:
-```bash
+### Phát triển một module riêng (khuyến nghị)
+Không cần chạy toàn bộ pipeline khi đang code. Chọn đúng file Compose của module mình theo [hướng dẫn độc lập](MODULE_INDEPENDENCE.md):
+
+~~~~bash
+docker compose -f docker-compose.p1.yml up --build      # P1 — UI với backend giả lập
+docker compose -f docker-compose.p2.yml up --build      # P2 — Vision API
+docker compose -f docker-compose.p3.yml up --build      # P3 — LLM API
+docker compose -f docker-compose.p4.yml up --build -d   # P4 — PostgreSQL dev riêng
+~~~~
+
+P1/P2/P3 mở UI/docs theo hướng dẫn tương ứng. P4 có database dev riêng trên localhost:5433. Các stack này không ghép với nhau và sử dụng mock/dev data.
+
+### Chỉ khi bắt đầu giai đoạn tích hợp
+Integration owner khởi chạy toàn hệ thống bằng:
+
+~~~~bash
 docker compose up --build -d
 docker compose ps
-```
-
-Mở http://localhost:8501 và thử ảnh tổng hợp `data/sample_cases/demo_synthetic.png`. Chạy smoke test:
-```bash
 docker compose exec -T ui python smoke_test.py
-```
+~~~~
+
+Mở http://localhost:8501 để kiểm tra luồng end-to-end. Chỉ chạy smoke test này khi stack tích hợp đang hoạt động.
 
 Xem log khi có lỗi:
 ```bash
@@ -176,21 +188,21 @@ git commit -m "feat(ui): improve analysis result display"
 git push -u origin p1-ui
 ``
 
-Sau đó tạo Pull Request từ nhánh cá nhân vào `main`. Trong mô tả PR, ghi mục tiêu, file đã sửa, lệnh test và kết quả, giới hạn/TODO còn lại, ảnh chụp màn hình hoặc log nếu hữu ích. Nhờ thành viên khác review; không merge khi smoke test lỗi.
+Sau đó tạo Pull Request từ nhánh cá nhân vào `integration`. Không merge module vào `main` trực tiếp; sau khi toàn bộ stack vượt qua kiểm thử E2E, leader tạo PR từ `integration` vào `main`. Trong mô tả PR, ghi mục tiêu, file đã sửa, lệnh test và kết quả, giới hạn/TODO còn lại, ảnh chụp màn hình hoặc log nếu hữu ích. Nhờ thành viên khác review; không merge khi smoke test lỗi.
 
 ## 6. Checklist trước khi gửi Pull Request
 
 - [ ] Service chạy đúng: kiểm tra `docker compose ps`.
 - [ ] Health endpoint của module trả kết quả thành công.
 - [ ] Đã test endpoint hoặc giao diện bằng dữ liệu tổng hợp.
-- [ ] Đã chạy `docker compose exec -T ui python smoke_test.py`.
+- [ ] Đã chạy test độc lập của module; chỉ chạy `docker compose exec -T ui python smoke_test.py` khi stack tích hợp đang chạy.
 - [ ] Đã đọc log và xử lý traceback/lỗi lặp.
 - [ ] `git diff` không có secret, dữ liệu nhạy cảm, weights lớn hoặc file tạm.
 - [ ] PR mô tả chính xác test đã chạy và TODO còn lại.
 
 ## 7. Audit
 
-Các script trong `audits/` là Bash script. Trên Windows, dùng Git Bash hoặc WSL:
+Các script trong `audits/` là Bash script và chủ yếu cần stack tích hợp. Trên Windows, dùng Git Bash hoặc WSL; chỉ integration owner chạy audit trên stack thử nghiệm:
 ```bash
 bash audits/audit1_reproducibility.sh
 bash audits/audit2_image_cache.sh
