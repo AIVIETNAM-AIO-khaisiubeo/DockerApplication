@@ -1,0 +1,23 @@
+# P4-only development stack. Localhost-only port mapping is for development, NOT production.
+# Uses a separate named volume so this dev database does not share the integrated stack's data.
+name: medtriage-p4-dev
+services:
+  db:
+    build: ./services/04-db
+    ports:
+      - "127.0.0.1:${P4_DB_PORT:-5433}:5432"
+    environment:
+      POSTGRES_DB: ${P4_POSTGRES_DB:-medtriage}
+      POSTGRES_USER: ${P4_POSTGRES_USER:-medtriage}
+      POSTGRES_PASSWORD: ${P4_POSTGRES_PASSWORD:-local_dev_only_change_me}
+    volumes:
+      - p4_db_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$${P4_POSTGRES_USER:-medtriage} -d $$${P4_POSTGRES_DB:-medtriage}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  p4_db_dev_data:
