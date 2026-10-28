@@ -1,0 +1,16 @@
+# P1-only development stack. Does NOT start Vision, LLM, or PostgreSQL.
+# All backend responses/history are simulated by the UI; never use for clinical interpretation.
+name: medtriage-p1-dev
+services:
+  ui:
+    build: ./services/01-ui
+    ports:
+      - "127.0.0.1:${P1_UI_PORT:-8501}:8501"
+    environment:
+      UI_MOCK_BACKENDS: "1"
+      VISION_URL: http://unused-in-ui-mock-mode
+      LLM_URL: http://unused-in-ui-mock-mode
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+    volumes:
+      - ./services/01-ui:/app
+    command: ["streamlit", "run", "app.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.runOnSave=true", "--server.fileWatcherType=poll"]
