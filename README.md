@@ -1,36 +1,57 @@
-
-# MedTriage AI 
+# MedTriage AI
 
 Pipeline 4 container: **UI (Streamlit) -> Vision API -> LLM API -> PostgreSQL**.
-Mọi thứ đã chạy được ở chế độ **mock**; mỗi người chỉ cần thay phần code trong thư mục module của mình.
-Kế hoạch & phân công: xem [`PLAN.md`](PLAN.md). Hợp đồng API: [`docs/CONTRACT.md`](docs/CONTRACT.md).
+Mọi thứ hiện chạy ở chế độ **mock** để kiểm thử tích hợp; từng thành viên triển khai phần được giao trong thư mục module tương ứng.
 
-## Chạy thử (cần Docker Desktop / Docker Engine + Compose v2)
+**Thành viên mới? Đọc [Hướng dẫn làm việc cho nhóm](docs/TEAM_GUIDE.md)** trước khi bắt đầu. Tài liệu bao gồm setup, vị trí code theo module, lệnh chạy/test, Git branch/PR, audit và xử lý lỗi.
+
+- Kế hoạch & phân công: [PLAN.md](PLAN.md)
+- Hợp đồng API giữa các module: [docs/CONTRACT.md](docs/CONTRACT.md)
+
+## Chạy thử
+
+Cần Docker Desktop hoặc Docker Engine cùng Docker Compose v2.
+
+Bash / Git Bash / Linux / macOS:
 ```bash
 cp .env.example .env
-docker compose up --build        # mở http://localhost:8501
+docker compose up --build -d
 ```
-Kiểm tra nhanh không cần giao diện:
+
+PowerShell:
+```powershell
+Copy-Item .env.example .env
+docker compose up --build -d
+```
+
+Mở http://localhost:8501, sau đó chạy smoke test:
 ```bash
 docker compose exec -T ui python smoke_test.py
 ```
 
-## Mỗi người làm ở đâu?
-| Người | Module | Thư mục | Audit |
-|---|---|---|---|
-| P1 | 01 UI | `services/01-ui/` | `audits/audit1_reproducibility.sh` |
-| P2 | 02 Vision | `services/02-vision/` | `audits/audit2_image_cache.sh` |
-| P3 | 03 LLM | `services/03-llm/` | `audits/audit3_fault_tolerance.sh` |
-| P4 | 04 DB + hạ tầng | `services/04-db/`, `docker-compose.yml` | `audits/audit4_security_persistence.sh` |
+## Phân công module
 
-Tìm `TODO(P1..P4)` trong code để thấy việc của mình: `grep -rn "TODO(P" .`
+| Thành viên | Module | Thư mục | Audit chính |
+|---|---|---|---|
+| P1 | UI | `services/01-ui/` | `audits/audit1_reproducibility.sh` |
+| P2 | Vision API | `services/02-vision/` | `audits/audit2_image_cache.sh` |
+| P3 | LLM API | `services/03-llm/` | `audits/audit3_fault_tolerance.sh` |
+| P4 | Database + hạ tầng | `services/04-db/`, `docker-compose.yml` | `audits/audit4_security_persistence.sh` |
 
 ## Quy tắc làm việc
-- **Dev (mặc định)** `docker compose up`: Compose tự gộp `docker-compose.override.yml` (bind mount + reload) - sửa code là thấy ngay.
-- **Production/audit** `docker compose -f docker-compose.yml up --build`: không bind mount.
-- Mỗi người một nhánh (`p1-ui`, `p2-vision`, `p3-llm`, `p4-db`), merge vào `main` qua Pull Request; **đừng sửa file của người khác**
-  (riêng `docker-compose.yml`: báo P4). Không commit `.env`, weights mô hình, dữ liệu thật.
-- Đổi API => cập nhật `docs/CONTRACT.md` và báo nhóm.
-- Chế độ thật: đặt `MODEL_MODE=real` / `LLM_MODE=real` trong `.env` khi module của bạn sẵn sàng.
 
+- Mỗi thành viên làm trên nhánh riêng và gửi Pull Request vào `main`.
+- Không commit `.env`, API keys, dữ liệu bệnh nhân hoặc model weights lớn.
+- Trao đổi với P4 trước khi sửa `docker-compose.yml`.
+- Nếu đổi API, cập nhật `docs/CONTRACT.md` và thông báo các thành viên liên quan.
+- Giữ `MODEL_MODE=mock` và `LLM_MODE=mock` cho đến khi mode thật đã được triển khai và kiểm thử.
+- Mặc định, `docker compose up` tự gộp `docker-compose.override.yml` nếu file này tồn tại. Xem hướng dẫn nhóm để phân biệt chế độ development và audit.
 
+Tìm TODO được gắn theo người phụ trách:
+```bash
+grep -rn "TODO(P" services audits
+```
+Trên PowerShell:
+```powershell
+Get-ChildItem services,audits -Recurse -File | Select-String "TODO(P[1-4])"
+```
