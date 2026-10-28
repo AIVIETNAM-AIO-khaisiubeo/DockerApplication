@@ -1,4 +1,9 @@
-"""Truy cập PostgreSQL cho UI. Schema nằm ở services/04-db/init.sql (P4 sở hữu schema)."""
+"""Các hàm giúp UI đọc và lưu lịch sử trong PostgreSQL.
+
+- save_case(): lưu một ca thử nghiệm và kết quả.
+- list_cases(): đọc các ca gần đây để hiển thị trong UI.
+P4 quản lý cấu trúc bảng trong services/04-db/init.sql. Trao đổi với P4 trước khi đổi tên cột.
+"""
 import os
 import time
 
