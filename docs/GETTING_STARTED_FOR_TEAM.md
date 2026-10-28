@@ -56,7 +56,7 @@ Thay <ten-branch> theo module được giao:
 | P3 — LLM API | p3-llm | services/03-llm/ |
 | P4 — Database | p4-db | services/04-db/ |
 
-Nếu branch của bạn đã tồn tại trên máy, dùng git switch <ten-branch> thay vì tạo lại. Làm việc trên branch cá nhân; không commit trực tiếp vào main hoặc integration.
+Nếu branch của bạn đã tồn tại trên máy, chuyển sang branch đó bằng lệnh git switch kèm tên branch tương ứng. Làm việc trên branch cá nhân; không commit trực tiếp vào main hoặc integration.
 
 ## 4. Chạy riêng module được giao
 
