@@ -1,7 +1,5 @@
 # Làm việc độc lập theo module
 
-## Mục tiêu
-
 Mỗi thành viên có thể phát triển và kiểm thử module của mình mà **không phải khởi động hay phụ thuộc code đang thay đổi của ba thành viên khác**. Khi từng module đạt tiêu chí hoàn thành, leader mới ghép chúng bằng Compose tích hợp và chạy kiểm thử end-to-end.
 
 Nguyên tắc:
