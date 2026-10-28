@@ -6,11 +6,12 @@
 
 ## Bạn nên đọc gì trước?
 
-1. **[Docker căn bản — thực hành từng bước](docs/DOCKER_BASICS.md)**: Docker image/container là gì, chạy lệnh nào, xem kết quả ở đâu.
-2. **[Hướng dẫn thành viên](docs/TEAM_GUIDE.md)**: cách bắt đầu, làm việc theo module, kiểm thử và gửi thay đổi.
-3. **[Làm module độc lập rồi ghép sau](docs/MODULE_INDEPENDENCE.md)**: hướng dẫn cho cả nhóm và leader.
-4. **[PLAN.md](PLAN.md)**: các công việc và mốc thời gian.
-5. **[Hợp đồng API](docs/CONTRACT.md)**: cách các module gửi dữ liệu cho nhau.
+1. **[Hướng dẫn bắt đầu cho thành viên mới](docs/TEAM_ONBOARDING.md)**: chuẩn bị máy, clone repo, chạy module được giao, kiểm thử và gửi Pull Request.
+2. **[Docker căn bản — thực hành từng bước](docs/DOCKER_BASICS.md)**: Docker image/container là gì, chạy lệnh nào, xem kết quả ở đâu.
+3. **[Hướng dẫn thành viên](docs/TEAM_GUIDE.md)**: cách bắt đầu, làm việc theo module, kiểm thử và gửi thay đổi.
+4. **[Làm module độc lập rồi ghép sau](docs/MODULE_INDEPENDENCE.md)**: hướng dẫn cho cả nhóm và leader.
+5. **[PLAN.md](PLAN.md)**: các công việc và mốc thời gian.
+6. **[Hợp đồng API](docs/CONTRACT.md)**: cách các module gửi dữ liệu cho nhau.
 
 ## Project được chia thành 4 phần
 
@@ -39,7 +40,7 @@ docker compose -f docker-compose.p3.yml up --build     # P3 — LLM API
 docker compose -f docker-compose.p4.yml up --build -d  # P4 — PostgreSQL thử nghiệm
 ```
 
-Không cần chạy cả bốn lệnh. Chỉ chạy lệnh của module bạn phụ trách. Hướng dẫn chi tiết, địa chỉ để mở trong trình duyệt và cách kiểm tra kết quả có trong [DOCKER_BASICS.md](docs/DOCKER_BASICS.md).
+Không cần chạy cả bốn lệnh. Chỉ chạy lệnh của module bạn phụ trách. Hướng dẫn chi tiết, địa chỉ để mở trong trình duyệt và cách kiểm tra kết quả có trong [TEAM_ONBOARDING.md](docs/TEAM_ONBOARDING.md) và [DOCKER_BASICS.md](docs/DOCKER_BASICS.md).
 
 ## Khi nào chạy toàn bộ ứng dụng?
 
