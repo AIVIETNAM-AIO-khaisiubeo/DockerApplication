@@ -1,4 +1,6 @@
-# Module 01 - UI (P1). Bản đơn giản chạy được; tối ưu sau nếu cần (Audit 1 chủ yếu về tái lập + Bind Mount).
+# P1 — UI: môi trường để chạy trang web Streamlit.
+# Docker cài các thư viện trong requirements.txt, sau đó khởi động app.py.
+# Khi phát triển, file docker-compose.override.yml chia sẻ code từ laptop vào container.
 FROM python:3.11-slim
 ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 WORKDIR /app
