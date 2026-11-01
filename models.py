@@ -1,4 +1,4 @@
-"""Kiểu dữ liệu request của LLM API - khớp docs/CONTRACT.md   [P3]"""
+
 from typing import Annotated
 
 from pydantic import BaseModel, Field
