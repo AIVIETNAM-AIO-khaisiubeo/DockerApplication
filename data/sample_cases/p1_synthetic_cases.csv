@@ -1,0 +1,21 @@
+case_id,image_file,symptoms
+C01,p1_test_image.png,TEST TỔNG HỢP 01: ghi chú không có triệu chứng
+C02,p1_test_image.png,TEST TỔNG HỢP 02: ho nhẹ
+C03,p1_test_image.png,TEST TỔNG HỢP 03: sốt
+C04,p1_test_image.png,TEST TỔNG HỢP 04: khó thở (chuỗi kiểm thử)
+C05,p1_test_image.png,TEST TỔNG HỢP 05: đau ngực (chuỗi kiểm thử)
+C06,p1_test_image.png,TEST TỔNG HỢP 06: khám định kỳ (giả lập)
+C07,p1_test_image.png,TEST TỔNG HỢP 07: cough
+C08,p1_test_image.png,TEST TỔNG HỢP 08: dyspnea
+C09,p1_test_image.png,TEST TỔNG HỢP 09: chest pain
+C10,p1_test_image.png,TEST TỔNG HỢP 10: không sốt
+C11,p1_test_image.png,TEST TỔNG HỢP 11: ho kéo dài
+C12,p1_test_image.png,TEST TỔNG HỢP 12: đau họng
+C13,p1_test_image.png,TEST TỔNG HỢP 13: kiểm tra tiếng Việt có dấu
+C14,p1_test_image.png,TEST TỔNG HỢP 14: kiem tra tieng Viet khong dau
+C15,p1_test_image.png,"TEST TỔNG HỢP 15: nhiều dấu câu; ho, sốt, mệt"
+C16,p1_test_image.png,TEST TỔNG HỢP 16: ho ra máu (chuỗi kiểm thử)
+C17,p1_test_image.png,TEST TỔNG HỢP 17: tím tái (chuỗi kiểm thử)
+C18,p1_test_image.png,TEST TỔNG HỢP 18: fatigue
+C19,p1_test_image.png,TEST TỔNG HỢP 19: khó thở nặng (chuỗi kiểm thử)
+C20,p1_test_image.png,TEST TỔNG HỢP 20: kết thúc batch 20 ca giả lập

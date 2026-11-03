@@ -1,127 +1,198 @@
-"""P1 — Giao diện web.
+"""MedTriage AI – P1 Streamlit UI.
 
-Khi chạy toàn hệ thống, UI gửi ảnh tới Vision, gửi triệu chứng và kết quả Vision tới LLM,
-sau đó lưu kết quả vào PostgreSQL. Khi UI_MOCK_BACKENDS=1, các phản hồi chỉ được giả lập
-để P1 kiểm tra giao diện độc lập; không gọi model thật hoặc lưu vào database.
+Works in two modes:
+  UI_MOCK_BACKENDS=1: completely isolated UI development; no HTTP or PostgreSQL calls.
+  UI_MOCK_BACKENDS=0: calls Vision /predict, LLM /soap, saves non-manual runs to DB.
+
+For software demonstration only; never make a clinical decision using this UI.
 """
-import hashlib
+from __future__ import annotations
+
 import os
-import time
+from datetime import datetime
 
 import pandas as pd
-import requests
 import streamlit as st
 
+import client
 import db
 
 VISION_URL = os.getenv("VISION_URL", "http://vision:8000")
 LLM_URL = os.getenv("LLM_URL", "http://llm:8000")
-ICON = {"EMERGENT": "🔴", "URGENT": "🟠", "ROUTINE": "🟢"}
-UI_MOCK_BACKENDS = os.getenv("UI_MOCK_BACKENDS", "0") == "1"
+UI_MOCK = os.getenv("UI_MOCK_BACKENDS", "0") == "1"
+PRIORITY_LABELS = {"EMERGENT": "🔴 EMERGENT", "URGENT": "🟠 URGENT", "ROUTINE": "🟢 ROUTINE"}
+
+st.set_page_config(page_title="MedTriage AI – P1", page_icon="🩺", layout="wide")
 
 
-def make_ui_mock_vision(image_bytes: bytes) -> dict:
-    """Deterministic synthetic response for isolated UI development only."""
-    digest = hashlib.sha256(image_bytes).digest()
-    labels = ["Pneumonia", "Pleural Effusion", "Cardiomegaly", "Atelectasis", "Pneumothorax"]
-    probabilities = {label: round(0.05 + (digest[i] / 255) * 0.65, 3) for i, label in enumerate(labels)}
-    probabilities["No Finding"] = round(max(0.0, 1 - max(probabilities.values())), 3)
-    return {
-        "probabilities": probabilities,
-        "metadata_removed": True,
-        "mode": "ui-demo-mock",
-        "latency_ms": 1,
-    }
+def _status(label: str, url: str) -> None:
+    try:
+        result = client.health(url, label)
+        mode = result.get("mode", "unknown")
+        st.success(f"{label}: online · mode={mode}")
+    except client.ServiceError as exc:
+        st.error(f"{label}: offline ({exc.detail})")
 
 
-def make_ui_mock_llm(symptoms: str, findings: dict) -> dict:
-    """Synthetic SOAP response for visual testing; not a medical assessment."""
-    top_label, top_probability = max(
-        ((key, value) for key, value in findings.items() if key != "No Finding"),
-        key=lambda item: item[1],
-        default=("Unknown", 0.0),
-    )
-    return {
-        "soap": {
-            "S": f"[DEMO MOCK] Synthetic note for test input: {symptoms.strip()}",
-            "O": "[DEMO MOCK] Synthetic findings supplied by the UI development stub.",
-            "A": f"[DEMO MOCK] Example label {top_label} ({top_probability:.0%}); not a model prediction.",
-            "P": "[DEMO MOCK] UI-only test plan. Do not use for clinical decisions.",
-        },
-        "priority": "URGENT",
-        "mode": "ui-demo-mock",
-        "latency_ms": 1,
-    }
+def _session_history_add(result: dict, symptoms: str) -> None:
+    history = st.session_state.setdefault("p1_local_history", [])
+    history.insert(0, {
+        "id": f"session-{len(history) + 1}",
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "priority": result["llm"]["priority"],
+        "symptoms": symptoms,
+        "vision_latency_ms": result["vision"]["latency_ms"],
+        "llm_latency_ms": result["llm"]["latency_ms"],
+        "source": result["source"],
+    })
 
 
-st.set_page_config(page_title="MedTriage AI", page_icon="🩺", layout="wide")
+def _render_result(result: dict, case_id: int | None, save_error: str | None) -> None:
+    vision, llm = result["vision"], result["llm"]
+    st.subheader("Kết quả lần phân tích gần nhất")
+    priority = PRIORITY_LABELS[llm["priority"]]
+    if llm["priority"] == "EMERGENT":
+        st.error(f"**Mức ưu tiên minh họa: {priority}**")
+    elif llm["priority"] == "URGENT":
+        st.warning(f"**Mức ưu tiên minh họa: {priority}**")
+    else:
+        st.info(f"**Mức ưu tiên minh họa: {priority}**")
+
+    modes = f"Vision: {vision['mode']} · LLM: {llm['mode']}"
+    st.caption(modes + (f" · DB case #{case_id}" if case_id else " · Không ghi PostgreSQL"))
+    if vision["mode"] != "real" or llm["mode"] != "real":
+        st.warning("Kết quả có thành phần mock/manual. Không phải dự đoán hoặc ghi chú y khoa đã kiểm chứng.")
+    if save_error:
+        st.error(f"Phân tích đã trả kết quả, nhưng KHÔNG lưu được lịch sử: {save_error}")
+
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Vision API", f"{vision['latency_ms']:.0f} ms")
+    m2.metric("LLM API", f"{llm['latency_ms']:.0f} ms")
+    m3.metric("Vision + LLM (E2E)", f"{result['elapsed_ms']:.0f} ms")
+
+    st.markdown("**Điểm đầu ra từ Vision (không mặc định là xác suất đã hiệu chuẩn)**")
+    for key, value in sorted(vision["probabilities"].items(), key=lambda item: -item[1]):
+        st.progress(float(value), text=f"{key}: {value:.1%}")
+    st.markdown("**Ghi chú SOAP**")
+    for key, title in (("S", "Subjective"), ("O", "Objective"),
+                       ("A", "Assessment"), ("P", "Plan")):
+        with st.container(border=True):
+            st.markdown(f"**{key} — {title}**")
+            # Display plain markdown, not untrusted HTML from an LLM.
+            st.write(llm["soap"][key])
+    with st.expander("JSON API / thông tin kiểm thử"):
+        st.json({"vision": vision, "llm": llm, "source": result["source"]})
+
+
 st.title("🩺 MedTriage AI")
-st.caption("Nguyên mẫu nghiên cứu - không phải thiết bị y tế. Không nhập thông tin định danh bệnh nhân.")
-if UI_MOCK_BACKENDS:
-    st.warning("UI ISOLATION MODE: Vision, LLM và lịch sử được mô phỏng trong UI. Không có model chạy và không có dữ liệu được lưu vào PostgreSQL.")
+st.caption("Nguyên mẫu phần mềm nghiên cứu Docker – không phải thiết bị y tế. Chỉ dùng dữ liệu tổng hợp hoặc đã được phép sử dụng; không nhập thông tin định danh bệnh nhân.")
 
-tab_new, tab_hist = st.tabs(["Ca mới", "Lịch sử"])
+if UI_MOCK:
+    st.warning("UI ISOLATION MODE — Vision, LLM và lịch sử đều được GIẢ LẬP trong UI. Không gọi API hoặc PostgreSQL.")
 
-with tab_new:
-    left, right = st.columns(2)
-    with left:
-        up = st.file_uploader("Ảnh X-quang ngực (PNG/JPG)", type=["png", "jpg", "jpeg"])
-        if up:
-            st.image(up, use_column_width=True)
-        symptoms = st.text_area("Ghi chú triệu chứng", height=140, placeholder="Ví dụ: sốt 3 ngày, ho có đờm, khó thở khi gắng sức")
-        run = st.button("Phân tích", type="primary", disabled=(up is None or not symptoms.strip()))
+with st.sidebar:
+    st.header("Trạng thái hệ thống")
+    if UI_MOCK:
+        st.info("Vision: UI mock")
+        st.info("LLM: UI mock")
+        st.info("PostgreSQL: không sử dụng")
+    else:
+        _status("Vision", VISION_URL)
+        _status("LLM", LLM_URL)
+        try:
+            db.check_connection()
+            st.success("PostgreSQL: online")
+        except Exception:
+            st.error("PostgreSQL: offline (xem log db)")
+    if st.button("Kiểm tra lại trạng thái", key="refresh_health"):
+        st.rerun()
+    st.divider()
+    manual = st.toggle(
+        "Chế độ test: nhập điểm Vision thủ công", value=False,
+        help="Bỏ qua bước gửi ảnh sang P2, hữu ích khi P2 chưa sẵn sàng. Ca này không lưu PostgreSQL.",
+    )
+    if manual:
+        st.warning("MANUAL TEST: điểm do người dùng đặt, không phải kết quả X-quang.")
+    st.caption("Trong Docker Compose, Vision ở http://vision:8000 và LLM ở http://llm:8000.")
 
-    with right:
+new_tab, history_tab = st.tabs(["Ca mới", "Lịch sử"])
+
+with new_tab:
+    input_col, output_col = st.columns([1, 1.25], gap="large")
+    with input_col:
+        st.subheader("1. Dữ liệu thử nghiệm")
+        uploaded = None
+        scores = None
+        if manual:
+            st.info("Nhập điểm mô phỏng từng nhãn. Không cần tải ảnh.")
+            scores = {key: st.slider(key, min_value=0.0, max_value=1.0,
+                                     value=0.10, step=0.01, key=f"p1_{key}") for key in client.LABELS}
+            scores["No Finding"] = round(max(0.0, 1.0 - max(scores.values())), 3)
+        else:
+            uploaded = st.file_uploader("Ảnh thử nghiệm (PNG/JPG)", type=["png", "jpg", "jpeg"])
+            if uploaded is not None:
+                st.image(uploaded, caption=uploaded.name, use_column_width=True)
+                st.caption(f"Dung lượng: {uploaded.size / 1024:.1f} KiB; tối đa {client.MAX_UPLOAD_BYTES // (1024 * 1024)} MiB.")
+        symptoms = st.text_area("Mô tả triệu chứng giả lập", height=130, max_chars=2000,
+                                placeholder="Ví dụ dữ liệu giả lập: ho, sốt, khó thở...")
+        can_run = bool(symptoms.strip()) and (manual or uploaded is not None)
+        run = st.button("Phân tích", type="primary", disabled=not can_run, use_container_width=True)
         if run:
             try:
-                t0 = time.perf_counter()
-                if UI_MOCK_BACKENDS:
-                    with st.spinner("Tạo kết quả UI giả lập..."):
-                        vision = make_ui_mock_vision(up.getvalue())
-                        llm = make_ui_mock_llm(symptoms, vision["probabilities"])
-                    total_ms = int((time.perf_counter() - t0) * 1000)
-                    history = st.session_state.setdefault("ui_mock_history", [])
-                    case_id = len(history) + 1
-                    history.insert(0, {
-                        "id": case_id,
-                        "priority": llm["priority"],
-                        "symptoms": symptoms,
-                        "vision_latency_ms": vision["latency_ms"],
-                        "llm_latency_ms": llm["latency_ms"],
-                        "created_at": "UI demo session",
-                    })
+                with st.spinner("Đang xử lý dữ liệu thử nghiệm..."):
+                    raw = uploaded.getvalue() if uploaded is not None else None
+                    result = client.analyze(
+                        symptoms,
+                        image_name=uploaded.name if uploaded is not None else "",
+                        image_bytes=raw,
+                        image_mime=uploaded.type if uploaded is not None else "image/png",
+                        manual_findings=scores,
+                        ui_mock=UI_MOCK,
+                        vision_url=VISION_URL,
+                        llm_url=LLM_URL,
+                    )
+                case_id, save_error = None, None
+                if UI_MOCK or manual:
+                    _session_history_add(result, symptoms)
                 else:
-                    with st.spinner("Đang phân tích ảnh..."):
-                        r1 = requests.post(f"{VISION_URL}/predict", files={"file": (up.name, up.getvalue(), up.type)}, timeout=120)
-                        r1.raise_for_status()
-                        vision = r1.json()
-                    with st.spinner("Đang soạn bệnh án SOAP..."):
-                        r2 = requests.post(f"{LLM_URL}/soap", json={"symptoms": symptoms, "findings": vision["probabilities"]}, timeout=300)
-                        r2.raise_for_status()
-                        llm = r2.json()
-                    case_id = db.save_case(symptoms, vision["probabilities"], llm["soap"], llm["priority"],
-                                           vision["latency_ms"], llm["latency_ms"])
-                    total_ms = int((time.perf_counter() - t0) * 1000)
+                    try:
+                        case_id = db.save_case(symptoms.strip(), result["vision"]["probabilities"],
+                                               result["llm"]["soap"], result["llm"]["priority"],
+                                               result["vision"]["latency_ms"], result["llm"]["latency_ms"])
+                    except Exception as exc:
+                        # Results remain visible even if P4 is temporarily unavailable.
+                        save_error = f"{type(exc).__name__}. Kiểm tra PostgreSQL và schema cases."
+                st.session_state["p1_latest"] = (result, case_id, save_error)
+            except client.ServiceError as exc:
+                st.error(f"{exc.service} — {exc.detail}")
+            except Exception as exc:
+                st.error(f"Lỗi giao diện ({type(exc).__name__}). Kiểm tra log UI.")
+    with output_col:
+        if "p1_latest" in st.session_state:
+            _render_result(*st.session_state["p1_latest"])
+        else:
+            st.info("Nhập dữ liệu ở bên trái và bấm Phân tích để xem kết quả.")
 
-                st.subheader(f"{ICON.get(llm['priority'], '')} Mức ưu tiên: {llm['priority']}")
-                case_label = "Demo" if UI_MOCK_BACKENDS else "Ca"
-                st.caption(f"{case_label} #{case_id} | vision {vision['latency_ms']} ms | llm {llm['latency_ms']} ms | tổng {total_ms} ms | "
-                           f"mode: {vision['mode']}/{llm['mode']}")
-                st.markdown("**Xác suất bệnh lý**")
-                st.bar_chart(pd.Series(vision["probabilities"]))
-                st.markdown("**Bệnh án SOAP**")
-                for key, title in [("S", "Subjective"), ("O", "Objective"), ("A", "Assessment"), ("P", "Plan")]:
-                    st.markdown(f"**{key} - {title}:** {llm['soap'].get(key, '')}")
-            except requests.RequestException as e:
-                st.error(f"Lỗi gọi dịch vụ: {e}")  # TODO(P1): thông báo thân thiện theo từng service
-            except Exception as e:  # noqa: BLE001
-                st.error(f"Lỗi: {e}")
-
-with tab_hist:
-    if st.button("Làm mới"):
+with history_tab:
+    st.subheader("2. Lịch sử ca thử nghiệm")
+    if st.button("Làm mới lịch sử", key="reload_history"):
         st.rerun()
-    try:
-        rows = st.session_state.get("ui_mock_history", []) if UI_MOCK_BACKENDS else db.list_cases(50)
-        st.dataframe(pd.DataFrame(rows), use_container_width=True) if rows else st.info("Chưa có ca nào trong phiên này.")
-    except Exception as e:  # noqa: BLE001
-        st.error(f"Không đọc được lịch sử: {e}")
+    local = st.session_state.get("p1_local_history", [])
+    if UI_MOCK:
+        st.caption("Chỉ là lịch sử trong phiên Streamlit; không lưu PostgreSQL.")
+    else:
+        st.caption("Ca gửi đủ Vision → LLM được lưu trong PostgreSQL; ca nhập thủ công chỉ lưu trong phiên UI.")
+        try:
+            saved = db.list_cases(limit=50)
+            if saved:
+                st.markdown("**Lịch sử PostgreSQL**")
+                st.dataframe(pd.DataFrame(saved), use_container_width=True, hide_index=True)
+            else:
+                st.info("PostgreSQL chưa có ca thử nghiệm.")
+        except Exception as exc:
+            st.error(f"Không thể đọc PostgreSQL ({type(exc).__name__}). Vui lòng xem log database.")
+    if local:
+        st.markdown("**Lịch sử thử nghiệm trong phiên này**")
+        st.dataframe(pd.DataFrame(local), use_container_width=True, hide_index=True)
+    elif UI_MOCK:
+        st.info("Chưa có lượt thử nào trong phiên này.")

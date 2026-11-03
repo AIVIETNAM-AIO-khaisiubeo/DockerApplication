@@ -1,8 +1,6 @@
-"""Các hàm giúp UI đọc và lưu lịch sử trong PostgreSQL.
+"""PostgreSQL access matching services/04-db/init.sql on main.
 
-- save_case(): lưu một ca thử nghiệm và kết quả.
-- list_cases(): đọc các ca gần đây để hiển thị trong UI.
-P4 quản lý cấu trúc bảng trong services/04-db/init.sql. Trao đổi với P4 trước khi đổi tên cột.
+No DDL changes: DB schema stays P4's responsibility.
 """
 import os
 import time
@@ -11,44 +9,57 @@ import psycopg2
 from psycopg2.extras import Json, RealDictCursor
 
 
-def get_conn(retries: int = 10, delay: float = 2.0):
-    for i in range(retries):
+def get_conn(retries: int = 3, delay: float = 1.0):
+    for attempt in range(retries):
         try:
             return psycopg2.connect(
                 host=os.getenv("POSTGRES_HOST", "db"),
                 dbname=os.getenv("POSTGRES_DB", "medtriage"),
                 user=os.getenv("POSTGRES_USER", "medtriage"),
                 password=os.getenv("POSTGRES_PASSWORD", "change_me"),
-                connect_timeout=5,
+                connect_timeout=3,
             )
         except psycopg2.OperationalError:
-            if i == retries - 1:
+            if attempt == retries - 1:
                 raise
             time.sleep(delay)
 
 
-def save_case(symptoms, probabilities, soap, priority, vision_ms, llm_ms) -> int:
+def check_connection() -> bool:
+    """One attempt for the UI status indicator, without DB writes."""
+    conn = get_conn(retries=1)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
+            return cur.fetchone()[0] == 1
+    finally:
+        conn.close()
+
+
+def save_case(symptoms: str, probabilities: dict, soap: dict,
+              priority: str, vision_ms: float, llm_ms: float) -> int:
     conn = get_conn()
     try:
         with conn, conn.cursor() as cur:
             cur.execute(
-                """INSERT INTO cases (symptoms, probabilities, soap, priority, vision_latency_ms, llm_latency_ms)
+                """INSERT INTO cases
+                   (symptoms, probabilities, soap, priority, vision_latency_ms, llm_latency_ms)
                    VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""",
-                (symptoms, Json(probabilities), Json(soap), priority, vision_ms, llm_ms),
+                (symptoms, Json(probabilities), Json(soap), priority, round(vision_ms), round(llm_ms)),
             )
             return cur.fetchone()[0]
     finally:
         conn.close()
 
 
-def list_cases(limit: int = 50):
-    conn = get_conn()
+def list_cases(limit: int = 50) -> list:
+    conn = get_conn(retries=1)
     try:
         with conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 "SELECT id, created_at, priority, symptoms, vision_latency_ms, llm_latency_ms "
-                "FROM cases ORDER BY created_at DESC LIMIT %s",
-                (limit,),
+                "FROM cases ORDER BY created_at DESC, id DESC LIMIT %s",
+                (max(1, min(limit, 200)),),
             )
             return cur.fetchall()
     finally:

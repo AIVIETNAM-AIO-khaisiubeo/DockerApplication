@@ -1,5 +1,7 @@
 __pycache__/
 *.pyc
-.git
+.git/
 .env
 *.md
+.pytest_cache/
+.coverage
