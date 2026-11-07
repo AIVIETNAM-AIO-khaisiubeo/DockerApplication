@@ -41,7 +41,7 @@ Tài liệu này ghi nhận trạng thái **những branch thực sự tồn t�
 - `services/01-ui/client.py` tách HTTP client, kiểm tra JSON contract, giới hạn kích thước file, timeout và báo lỗi.
 - `UI_MOCK_BACKENDS=1`: chạy UI độc lập, dùng lịch sử theo session, **không gọi P2/P3/PostgreSQL**. Chế độ nhập score thủ công để thử integration không ghi DB.
 - `db.py` và `smoke_test.py` cập nhật, `e2e_cases.py` với 20 tình huống tổng hợp, `tests/test_client.py`, dữ liệu thử trong `data/sample_cases/`.
-- Dockerfile P1 chạy non-root, tận dụng dependency-layer cache; Audit 1 script và [P1_HANDOFF.md](P1_HANDOFF.md).
+- Dockerfile P1 chạy non-root, tận dụng dependency-layer cache; Audit 1 script và [P1_HANDOFF.md](https://github.com/AIVIETNAM-AIO-khaisiubeo/DockerApplication/blob/p1-ui-complete/docs/P1_HANDOFF.md).
 
 **Bằng chứng hiện có (do báo cáo trong branch ghi nhận, chưa được kiểm tra lại độc lập):**
 - [P1_VALIDATION_REPORT.md](https://github.com/AIVIETNAM-AIO-khaisiubeo/DockerApplication/blob/p1-ui-complete/P1_VALIDATION_REPORT.md): **14/14** unit tests và **20/20** synthetic UI-mock cases PASS; `compileall` và `bash -n` PASS.
