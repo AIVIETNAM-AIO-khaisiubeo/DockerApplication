@@ -3,7 +3,6 @@
 > **Snapshot:** 07/11/2026 · Repository: [DockerApplication](https://github.com/AIVIETNAM-AIO-khaisiubeo/DockerApplication) · Nhánh chuẩn: `main`  
 > **Cách đánh giá:** Đã đọc source code, cấu trúc file, tài liệu bàn giao, so sánh commit và trạng thái PR trên GitHub. **Không chạy Docker, model thật hoặc hệ thống E2E trong lần rà soát này.** «Đã triển khai» chỉ xác nhận code đã có; **không đồng nghĩa đã chạy/đạt nghiệm thu**.
 
-Tài liệu này ghi nhận trạng thái **những branch thực sự tồn tại** và các công việc nên ưu tiên để hợp nhất bốn module P1–P4. Các nhiệm vụ gốc được mô tả trong [PLAN.md](../PLAN.md); dữ liệu API phải tuân theo [CONTRACT.md](CONTRACT.md).
 
 ## 1. Tổng quan các branch
 
