@@ -12,6 +12,7 @@ Mở **[GETTING_STARTED_FOR_TEAM.md](docs/GETTING_STARTED_FOR_TEAM.md)** để c
 - [TEAM_GUIDE.md](docs/TEAM_GUIDE.md) — kiểm thử module, kết quả mong đợi và xử lý lỗi.
 - [MODULE_INDEPENDENCE.md](docs/MODULE_INDEPENDENCE.md) — branch, Pull Request và quy trình tích hợp.
 - [CONTRACT.md](docs/CONTRACT.md) — endpoint và cấu trúc dữ liệu giữa các module.
+- [BRANCH_PROGRESS.md](docs/BRANCH_PROGRESS.md) — trạng thái các branch, phần đã triển khai, blockers và công việc cần làm tiếp.
 - [PLAN.md](PLAN.md) — công việc và kế hoạch của project.
 
 ## Bốn module
