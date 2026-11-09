@@ -1,6 +1,8 @@
-# P4 — Database PostgreSQL 16.
-# Dùng image PostgreSQL có sẵn, sau đó đưa init.sql vào thư mục đặc biệt.
-# Khi PostgreSQL khởi tạo vùng dữ liệu trống lần đầu, nó chạy init.sql để tạo bảng.
-# Nếu sửa init.sql sau khi database đã khởi tạo, script thường không tự chạy lại.
 FROM postgres:16-alpine
+
+# Tạo schema cases ban đầu
 COPY init.sql /docker-entrypoint-initdb.d/01-init.sql
+
+# Tạo bảng patients và liên kết lịch sử
+COPY migrations/001_patient_history.sql \
+     /docker-entrypoint-initdb.d/02-patient-history.sql
