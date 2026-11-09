@@ -1,0 +1,22 @@
+services:
+  vision:
+    build: ./DockerApplication-demo2
+    ports:
+      - "8000:8000"
+    volumes:
+      - vision-models:/models   
+
+  llm:
+    build: ./module_03_llm
+    ports:
+      - "8001:8000"
+    environment:
+      LLM_MODE: ${LLM_MODE:-mock}          
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  vision-models:
