@@ -1,103 +1,135 @@
-# File này chạy cả 4 phần cùng lúc. Chỉ dùng khi nhóm muốn thử toàn bộ ứng dụng.
-# Nếu đang làm một module riêng, hãy dùng docker-compose.p1.yml, p2, p3 hoặc p4.
-# Khi chạy "docker compose up", Docker Compose tự gộp docker-compose.override.yml để chia sẻ code
-# từ laptop vào container và tự tải lại khi code thay đổi. Xem docs/DOCKER_BASICS.md để hiểu các từ này.
+# MedTriage AI — hệ thống tích hợp 4 khối: UI (P1) - Vision (P2) - LLM (P3) - DB (P4)
+#
+# Bản "production": KHÔNG bind mount code (audit dùng file này một mình).
+# Khi phát triển, docker-compose.override.yml được tự động gộp vào.
+#
+#   cp .env.example .env        # lần đầu
+#   docker compose up -d --build --wait
+#   mở http://localhost:8501
+#
+# Luồng: ảnh -> vision:/predict -> llm:/soap -> lưu PostgreSQL (db) -> UI hiển thị
+
 name: medtriage
 
+x-healthcheck-http: &healthcheck-http
+  test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+  interval: 10s
+  timeout: 5s
+  retries: 3
+
 services:
-  # P1: giao diện mà người dùng mở trong trình duyệt.
-  ui:
-    build: ./services/01-ui
+  # ---------------------------------------------------------------- 04 - DB
+  db:
+    build:
+      context: ./services/04-db
+    image: medtriage/db:latest
+    container_name: medtriage-db
+    user: postgres                      # non-root (Audit 4)
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-medtriage}
+      POSTGRES_USER: ${POSTGRES_USER:-medtriage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong .env}
+      # Dùng bởi initdb/03-app-role.sh để tạo role quyền tối thiểu cho UI
+      APP_POSTGRES_USER: ${APP_POSTGRES_USER:-medtriage_app}
+      APP_POSTGRES_PASSWORD: ${APP_POSTGRES_PASSWORD:?Đặt APP_POSTGRES_PASSWORD trong .env}
+    # KHÔNG publish 5432 ra host (Audit 4 - cô lập mạng)
+    networks: [data]
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ------------------------------------------------------------ 02 - Vision
+  vision:
+    build:
+      context: ./services/02-vision
+    image: medtriage/vision:latest
+    container_name: medtriage-vision
+    restart: unless-stopped
+    environment:
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+    networks: [app]
     ports:
-      - "${UI_PORT:-8501}:8501"
+      - "127.0.0.1:${VISION_PORT:-8001}:8000"   # chỉ để debug từ máy host
+    volumes:
+      - vision_models:/models                   # giữ weights, không phải tải lại
+    mem_limit: 2g
+    healthcheck:
+      <<: *healthcheck-http
+      start_period: 180s                        # lần đầu phải tải weights
+
+  # --------------------------------------------------------------- 03 - LLM
+  llm:
+    build:
+      context: ./services/03-llm
+    image: medtriage/llm:latest
+    container_name: medtriage-llm
+    restart: unless-stopped
+    environment:
+      LLM_MODE: ${LLM_MODE:-mock}               # 'real' nếu có Ollama/OpenAI-compatible API
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
+      LLM_MODEL: ${LLM_MODEL:-qwen2.5:3b}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_TIMEOUT_S: ${LLM_TIMEOUT_S:-60}
+      ENABLE_DEBUG: ${ENABLE_DEBUG:-0}          # chỉ bật cho Audit 3
+    extra_hosts:
+      - "host.docker.internal:host-gateway"     # để gọi Ollama trên máy host (Linux)
+    networks: [app]
+    ports:
+      - "127.0.0.1:${LLM_PORT:-8002}:8000"
+    mem_limit: 512m                             # Audit 3: /debug/allocate 900MB phải bị OOM-kill
+    cpus: 1.0
+    healthcheck:
+      <<: *healthcheck-http
+      start_period: 20s
+
+  # ---------------------------------------------------------------- 01 - UI
+  ui:
+    build:
+      context: ./services/01-ui
+    image: medtriage/ui:latest
+    container_name: medtriage-ui
+    restart: unless-stopped
     environment:
       VISION_URL: http://vision:8000
       LLM_URL: http://llm:8000
       POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-medtriage}
-      POSTGRES_USER: ${POSTGRES_USER:-medtriage}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      # UI dùng role quyền tối thiểu, KHÔNG dùng tài khoản admin của DB
+      POSTGRES_USER: ${APP_POSTGRES_USER:-medtriage_app}
+      POSTGRES_PASSWORD: ${APP_POSTGRES_PASSWORD:?Đặt APP_POSTGRES_PASSWORD trong .env}
+      UI_MOCK_BACKENDS: ${UI_MOCK_BACKENDS:-0}
+    networks: [app, data]
+    ports:
+      - "${UI_PORT:-8501}:8501"
     volumes:
-      - ./data:/data:ro
-    networks: [frontend, backend] # UI cần gọi API và database nên kết nối cả hai mạng.
-    # UI chỉ bắt đầu khi các dịch vụ bên dưới báo đã sẵn sàng qua healthcheck.
+      - ./data/sample_cases:/data/sample_cases:ro   # ảnh test cho smoke_test.py
+    mem_limit: 512m
     depends_on:
-      db:     {condition: service_healthy}
-      vision: {condition: service_healthy}
-      llm:    {condition: service_healthy}
+      db:
+        condition: service_healthy
+      vision:
+        condition: service_healthy
+      llm:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped # nếu container dừng bất ngờ, Docker thử khởi động lại.
-
-  # P2: nhận file ảnh và trả về kết quả Vision.
-  vision:
-    build: ./services/02-vision
-    environment:
-      MODEL_MODE: ${MODEL_MODE:-mock}      # mock | real
-      MODEL_DIR: /models
-    volumes:
-      - vision_models:/models              # vùng giữ weights/cache Vision qua các lần tạo container
-    networks: [backend] # service nội bộ, không mở cổng trực tiếp ra máy host.
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-
-  # P3: nhận triệu chứng + kết quả Vision và tạo ghi chú SOAP.
-  llm:
-    build: ./services/03-llm
-    environment:
-      LLM_MODE: ${LLM_MODE:-mock}          # mock | real
-      MODEL_DIR: /models
-      ENABLE_DEBUG: ${ENABLE_DEBUG:-0}     # =1 mở /debug/* phục vụ Audit 3 (KHÔNG bật khi demo)
-    volumes:
-      - llm_models:/models                 # vùng giữ weights/cache LLM qua các lần tạo container
-    networks: [backend]
-    # Giới hạn RAM/CPU cho LLM để kiểm tra xem service hoạt động ra sao khi tài nguyên bị giới hạn.
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "1.0"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-
-  # P4: lưu lịch sử các ca thử nghiệm.
-  db:
-    build: ./services/04-db
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-medtriage}
-      POSTGRES_USER: ${POSTGRES_USER:-medtriage}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
-    volumes:
-      - db_data:/var/lib/postgresql/data   # vùng giữ database qua các lần tạo container
-    networks: [backend]
-    # Việc P4 cần thử: dùng tài khoản ít quyền hơn khi chạy DB và kiểm tra lại init.sql/volume.
-    # Không mở cổng 5432 ra máy host trong stack tích hợp.
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    restart: unless-stopped
+      start_period: 20s
+      retries: 3
 
 networks:
-  frontend: {}     # mạng phía người dùng; chỉ UI mở cổng ra máy host
-  backend: {}      # mạng riêng để các container gọi nhau bằng tên service
+  app: {}            # ui <-> vision/llm (có internet để tải weights / gọi LLM ngoài)
+  data:
+    internal: true   # ui <-> db, không ra internet, DB không lộ ra ngoài
 
 volumes:
-  vision_models:
-  llm_models:
   db_data:
+  vision_models:
