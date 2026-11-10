@@ -1,18 +1,15 @@
-# File hỗ trợ phát triển: Docker Compose tự gộp file này khi chạy "docker compose up" mặc định.
-# Các thư mục code trên laptop được chia sẻ vào container; server sẽ tự tải lại khi sửa code.
-# Khi chỉ muốn dùng cấu hình gốc, bỏ qua file này bằng:
-# docker compose -f docker-compose.yml up --build -d
-# Giải thích bind mount/reload: docs/DOCKER_BASICS.md
+# Chế độ DEV — tự động gộp khi chạy `docker compose up` (audit KHÔNG dùng file này).
+# Bind mount code UI để sửa app.py là Streamlit tự reload, không cần build lại.
 services:
   ui:
     volumes:
       - ./services/01-ui:/app
-    command: ["streamlit", "run", "app.py", "--server.address=0.0.0.0", "--server.runOnSave=true", "--server.fileWatcherType=poll"]
-  vision:
-    volumes:
-      - ./services/02-vision/app:/app/app
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-  llm:
-    volumes:
-      - ./services/03-llm/app:/app/app
-    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command:
+      - streamlit
+      - run
+      - app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.headless=true
+      - --server.runOnSave=true
+      - --server.fileWatcherType=poll   # cần cho bind mount trên Windows/macOS

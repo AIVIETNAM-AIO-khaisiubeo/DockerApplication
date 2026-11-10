@@ -10,4 +10,5 @@ CREATE TABLE IF NOT EXISTS cases (
     llm_latency_ms    INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_cases_created_at ON cases (created_at DESC);
--- TODO(P4): tài khoản DB quyền tối thiểu cho ứng dụng (chỉ INSERT/SELECT), tách khỏi tài khoản admin.
+-- Tài khoản DB quyền tối thiểu cho ứng dụng: xem initdb/03-app-role.sh (DB mới)
+-- hoặc scripts/provision_app_role.sh (DB đã có dữ liệu).

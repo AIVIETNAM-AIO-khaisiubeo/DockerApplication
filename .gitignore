@@ -1,11 +1,4 @@
 .env
+audits/results/
 __pycache__/
 *.pyc
-audits/results/
-*.log
-.DS_Store
-models/
-*.pt
-*.pth
-*.onnx
-*.gguf

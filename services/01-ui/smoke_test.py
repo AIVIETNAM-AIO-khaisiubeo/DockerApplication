@@ -8,7 +8,7 @@ import os
 import requests
 
 p = argparse.ArgumentParser()
-p.add_argument("image", nargs="?", default="/data/sample_cases/demo_synthetic.png")
+p.add_argument("image", nargs="?", default="/data/sample_cases/chest_xray_test.png")
 p.add_argument("--save", action="store_true", help="lưu ca vào DB (dùng cho Audit 4)")
 a = p.parse_args()
 
@@ -21,4 +21,4 @@ print(json.dumps({"vision": vision, "llm": llm}, ensure_ascii=False, indent=2))
 print("PROB_SHA256=" + hashlib.sha256(json.dumps(vision["probabilities"], sort_keys=True).encode()).hexdigest())
 if a.save:
     import db
-    print("SAVED_CASE_ID=%d" % db.save_case(symptoms, vision["probabilities"], llm["soap"], llm["priority"], vision["latency_ms"], llm["latency_ms"]))
+    print("SAVED_CASE_ID=%d" % db.save_case(symptoms, vision["probabilities"], llm["soap"], llm["priority"], int(round(vision["latency_ms"])), int(llm["latency_ms"])))

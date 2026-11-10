@@ -1,5 +1,8 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
 python-multipart==0.0.9
 pillow==10.4.0
-# TODO(P2): thêm khi làm bản thật, ví dụ: pydicom, torch, torchxrayvision
+torch==2.15.0
+torchvision==0.29.2
+torchxrayvision==1.5.7

@@ -1,6 +1,7 @@
-__pycache__/
-*.pyc
-.git
-.env
-*.md
+.venv/
 models/
+**/__pycache__/
+**/*.pyc
+.git
+.gitignore
+.env
