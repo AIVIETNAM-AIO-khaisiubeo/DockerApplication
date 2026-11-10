@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  db:
+    build:
+      context: ./04-db
+    container_name: medtriage-db
+    environment:
+      POSTGRES_DB: medtriage
+      POSTGRES_USER: medtriage
+      POSTGRES_PASSWORD: change_me
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U medtriage -d medtriage"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  vision:
+    build:
+      context: ./02-vision
+    container_name: medtriage-vision
+    ports:
+      - "8001:8000"
+    volumes:
+      - vision_models:/models  # Giữ lại trọng số model để không phải tải lại
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+
+  llm:
+    build:
+      context: ./03-llm
+    container_name: medtriage-llm
+    environment:
+      LLM_MODE: mock  # Đổi sang 'real' nếu có kết nối Ollama/OpenAI API
+    ports:
+      - "8002:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  ui:
+    build:
+      context: ./01-ui
+    container_name: medtriage-ui
+    environment:
+      VISION_URL: http://vision:8000
+      LLM_URL: http://llm:8000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: medtriage
+      POSTGRES_USER: medtriage
+      POSTGRES_PASSWORD: change_me
+      UI_MOCK_BACKENDS: "0"
+    ports:
+      - "8501:8501"
+    depends_on:
+      db:
+        condition: service_healthy
+      vision:
+        condition: service_healthy
+      llm:
+        condition: service_healthy
+
+volumes:
+  db_data:
+  vision_models:
